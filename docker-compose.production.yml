@@ -3,16 +3,15 @@ version: '3.8'
 services:
   mysql:
     image: mariadb:10.5
-    env_file:
-      - .env.production
+    container_name: mysql
     environment:
-      MYSQL_ROOT_PASSWORD: ${DATABASE_PASSWORD}
-      MYSQL_DATABASE: ${DATABASE_NAME}
+      MYSQL_ROOT_PASSWORD: ${DATABASE_PASSWORD:-1234}
+      MYSQL_DATABASE: ${DATABASE_NAME:-crm_system}
     volumes:
       - mysql_data:/var/lib/mysql
       - ./crm_system.sql:/docker-entrypoint-initdb.d/crm_system.sql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DATABASE_PASSWORD}"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DATABASE_PASSWORD:-1234}"]
       interval: 5s
       timeout: 5s
       retries: 5
@@ -23,28 +22,35 @@ services:
   nextjs:
     build:
       context: .
-      dockerfile: Dockerfile.production
-    env_file:
-      - .env.production
+      dockerfile: Dockerfile
+    container_name: nextjs
     environment:
+      - DATABASE_URL=mysql://root:${DATABASE_PASSWORD:-1234}@mysql:3306/${DATABASE_NAME:-crm_system}
+      - DATABASE_HOST=mysql
+      - DATABASE_USER=root
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD:-1234}
+      - DATABASE_NAME=${DATABASE_NAME:-crm_system}
       - NODE_ENV=production
+      - DOMAIN_NAME=${DOMAIN_NAME:-localhost}
+      - EMAIL_HOST=${EMAIL_HOST:-smtp.example.com}
+      - EMAIL_PORT=${EMAIL_PORT:-587}
+      - EMAIL_USER=${EMAIL_USER:-your-email@example.com}
+      - EMAIL_PASS=${EMAIL_PASS:-your-password}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-your-client-id}
+      - GOOGLE_CLIENT_SECRET=${GOOGLE_CLIENT_SECRET:-your-client-secret}
+      - GOOGLE_REFRESH_TOKEN=${GOOGLE_REFRESH_TOKEN:-your-refresh-token}
     deploy:
       resources:
         limits:
-          memory: 8G
-        reservations:
           memory: 4G
     volumes:
-      - ./public/uploads:/usr/src/public/uploads
-      - /usr/src/node_modules
-      - /usr/src/.next
+      - ./public/uploads:/app/public/uploads
     depends_on:
       mysql:
         condition: service_healthy
     restart: always
     networks:
       - app-network
-    container_name: nextjs
 
   nginx:
     image: nginx:latest
@@ -79,12 +85,10 @@ services:
   phpmyadmin:
     image: phpmyadmin/phpmyadmin
     container_name: phpmyadmin
-    env_file:
-      - .env.production
     environment:
       PMA_HOST: mysql
       PMA_PORT: 3306
-      MYSQL_ROOT_PASSWORD: ${DATABASE_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DATABASE_PASSWORD:-1234}
     depends_on:
       - mysql
     networks:
