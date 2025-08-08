@@ -1,95 +1,60 @@
-# Stage 1: Dependencies installation
+# Stage 1: Install dependencies
 FROM node:18-alpine AS deps
+
+# Install build dependencies
+RUN apk add --no-cache libc6-compat
+
 WORKDIR /app
 
-# Add swap space to prevent memory issues
-RUN apk add --no-cache bash
-RUN fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
-RUN chmod 600 /swapfile
-RUN mkswap /swapfile
-RUN echo '/swapfile none swap sw 0 0' >> /etc/fstab
-RUN swapon /swapfile
+# Copy package files
+COPY package.json package-lock.json ./
 
-# Install dependencies in smaller batches to reduce memory usage
-COPY package.json package-lock.json* ./
-RUN npm config set registry https://registry.npmjs.org/
-RUN npm config set fetch-retry-maxtimeout 600000
-RUN npm config set fetch-timeout 600000
-RUN npm config set maxsockets 1
+# Install dependencies
+RUN npm ci
 
-# Install dependencies in chunks to reduce memory usage
-RUN mkdir -p /app/node_modules
-RUN npm install --no-fund --no-audit --prefer-offline --legacy-peer-deps --production=false --loglevel verbose || \
-    (echo "Retrying npm install with increased memory limit" && \
-     NODE_OPTIONS="--max_old_space_size=512" npm install --no-fund --no-audit --prefer-offline --legacy-peer-deps --production=false --loglevel verbose)
-
-# Stage 2: Builder stage
+# Stage 2: Build the application
 FROM node:18-alpine AS builder
-WORKDIR /app
 
-# Add swap space to prevent memory issues
-RUN apk add --no-cache bash
-RUN fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
-RUN chmod 600 /swapfile
-RUN mkswap /swapfile
-RUN echo '/swapfile none swap sw 0 0' >> /etc/fstab
-RUN swapon /swapfile
+# Set up swap space to handle memory spikes
+RUN apk add --no-cache --virtual .build-deps \
+    util-linux \
+    && dd if=/dev/zero of=/swapfile bs=1M count=2048 \
+    && chmod 600 /swapfile \
+    && mkswap /swapfile \
+    && swapon /swapfile
+
+WORKDIR /app
 
 # Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Set environment variables for Next.js build
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
-ENV NODE_OPTIONS="--max_old_space_size=512"
+# Set environment variables for build
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-# Build the application in chunks to reduce memory usage
-RUN npm run build || \
-    (echo "Retrying build with increased memory limit" && \
-     NODE_OPTIONS="--max_old_space_size=1024" npm run build)
+# Build the application
+RUN npm run build
 
-# Stage 3: Runner stage
+# Stage 3: Production image
 FROM node:18-alpine AS runner
+
 WORKDIR /app
 
-# Add swap space to prevent memory issues
-RUN apk add --no-cache bash
-RUN fallocate -l 2G /swapfile || dd if=/dev/zero of=/swapfile bs=1M count=2048
-RUN chmod 600 /swapfile
-RUN mkswap /swapfile
-RUN echo '/swapfile none swap sw 0 0' >> /etc/fstab
-RUN swapon /swapfile
+# Set production environment
+ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 
-# Set environment variables
-ENV NODE_ENV production
-ENV NEXT_TELEMETRY_DISABLED 1
-ENV NODE_OPTIONS="--max_old_space_size=512"
-
-# Create non-root user for security
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-# Copy necessary files from builder stage
-COPY --from=builder /app/public ./public
+# Copy only necessary files from build stage
 COPY --from=builder /app/next.config.js ./
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
 COPY --from=builder /app/package.json ./package.json
 
-# Copy only production dependencies
-COPY --from=builder /app/node_modules ./node_modules
-COPY --from=builder /app/.next ./.next
-
-# Set correct permissions
-RUN chown -R nextjs:nodejs /app
-
-# Switch to non-root user
-USER nextjs
-
-# Expose port
+# Expose the application port
 EXPOSE 3000
 
-# Set healthcheck
-HEALTHCHECK --interval=30s --timeout=10s --start-period=30s --retries=3 CMD wget --no-verbose --tries=1 --spider http://localhost:3000/ || exit 1
-
 # Start the application
-CMD ["node_modules/.bin/next", "start"]
+CMD ["npm", "start"]
