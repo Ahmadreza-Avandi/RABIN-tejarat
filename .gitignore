@@ -117,9 +117,10 @@ public/uploads/
 *.xd
 
 # Database dumps
-*.sql
 *.dump
 *.bak
+# Allow specific SQL files
+!crm_system.sql
 
 # Temporary files
 tmp/
