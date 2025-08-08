@@ -1,217 +1,168 @@
-# راهنمای اجرای پروژه RABIN-tejarat CRM بدون داکر
+# Local Development Guide for CEM-CRM
 
-این راهنما به شما کمک می‌کند تا پروژه RABIN-tejarat CRM را بدون استفاده از داکر و به صورت محلی اجرا کنید.
+This guide provides instructions for setting up the CEM-CRM application for local development using Docker.
 
-## پیش‌نیازها
+## Prerequisites
 
-- Node.js نسخه 18 یا بالاتر
-- MySQL نسخه 5.7 یا بالاتر (یا MariaDB 10.5+)
-- Git
-- npm یا yarn
+- Docker and Docker Compose installed on your system
+- Git repository cloned to your local machine
 
-## مراحل نصب و راه‌اندازی
+## Setup Steps
 
-### 1. دریافت کد پروژه
-
-ابتدا کد پروژه را از مخزن گیت‌هاب دریافت کنید:
+### 1. Clone the Repository
 
 ```bash
 git clone https://github.com/Ahmadreza-Avandi/RABIN-tejarat.git
 cd RABIN-tejarat
 ```
 
-### 2. نصب وابستگی‌ها
+### 2. Clean Docker Environment (Optional)
 
-وابستگی‌های پروژه را با استفاده از npm نصب کنید:
-
-```bash
-npm install
-```
-
-یا اگر از yarn استفاده می‌کنید:
+If you want to start with a clean Docker environment, run:
 
 ```bash
-yarn install
+# Make the cleanup script executable
+chmod +x docker-cleanup.sh
+
+# Run the cleanup script
+./docker-cleanup.sh
 ```
 
-### 3. راه‌اندازی پایگاه داده
+### 3. Configure Environment Variables
 
-#### نصب MySQL یا MariaDB
-
-اگر MySQL یا MariaDB را نصب ندارید، آن را نصب کنید:
-
-**برای Ubuntu/Debian:**
-```bash
-sudo apt update
-sudo apt install mysql-server
-sudo mysql_secure_installation
-```
-
-**برای Windows:**
-- نسخه مناسب MySQL را از [سایت رسمی](https://dev.mysql.com/downloads/installer/) دانلود و نصب کنید.
-
-#### ایجاد پایگاه داده
-
-وارد MySQL شوید:
-
-```bash
-mysql -u root -p
-```
-
-سپس پایگاه داده و کاربر مورد نیاز را ایجاد کنید:
-
-```sql
-CREATE DATABASE crm_system CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-CREATE USER 'crm_user'@'localhost' IDENTIFIED BY 'your_password';
-GRANT ALL PRIVILEGES ON crm_system.* TO 'crm_user'@'localhost';
-FLUSH PRIVILEGES;
-EXIT;
-```
-
-#### وارد کردن اسکیما و داده‌های اولیه
-
-فایل SQL موجود در پروژه را به پایگاه داده وارد کنید:
-
-```bash
-mysql -u root -p crm_system < crm_system.sql
-```
-
-### 4. تنظیم متغیرهای محیطی
-
-فایل `.env.local` را ایجاد کنید:
+Create a local environment file:
 
 ```bash
 cp .env.example .env.local
 ```
 
-سپس فایل `.env.local` را با اطلاعات پایگاه داده خود ویرایش کنید:
-
-```
-DATABASE_URL=mysql://crm_user:your_password@localhost:3306/crm_system
-DATABASE_HOST=localhost
-DATABASE_USER=crm_user
-DATABASE_PASSWORD=your_password
-DATABASE_NAME=crm_system
-
-JWT_SECRET=your-super-secret-jwt-key-here-make-it-long-and-random
-
-NEXTAUTH_SECRET=your-nextauth-secret-here
-NEXTAUTH_URL=http://localhost:3000
-
-EMAIL_HOST=smtp.gmail.com
-EMAIL_PORT=587
-EMAIL_SECURE=false
-EMAIL_USER=your-email@gmail.com
-EMAIL_PASS=your-email-password
-
-GOOGLE_CLIENT_ID=your-google-client-id
-GOOGLE_CLIENT_SECRET=your-google-client-secret
-GOOGLE_REFRESH_TOKEN=your-google-refresh-token
-
-NODE_ENV=development
-```
-
-### 5. اجرای پروژه در حالت توسعه
-
-برای اجرای پروژه در حالت توسعه:
+Edit the `.env.local` file with your development settings:
 
 ```bash
-npm run dev
+# Use your favorite text editor
+nano .env.local
 ```
 
-یا با yarn:
+Important variables to update:
+- `DATABASE_PASSWORD`: Password for the MySQL database (default: 1234)
+- `DATABASE_NAME`: Database name (default: crm_system)
+- Email configuration (if you want to test email functionality)
+- Google OAuth settings (if using Gmail)
+
+### 4. Start the Development Environment
 
 ```bash
-yarn dev
+docker-compose up -d
 ```
 
-حالا می‌توانید به آدرس `http://localhost:3000` در مرورگر خود دسترسی داشته باشید.
+This will:
+- Start a MySQL database container with the CRM database
+- Build and start the Next.js application
+- Set up Nginx as a reverse proxy
+- Start PHPMyAdmin for database management
 
-### 6. ساخت نسخه تولید (اختیاری)
+### 5. Access the Application
 
-اگر می‌خواهید نسخه تولید را بسازید و اجرا کنید:
+- Next.js application: http://localhost:3000
+- Nginx proxy: http://localhost:8000
+- PHPMyAdmin: http://localhost:8080 (username: root, password: 1234)
+
+## Development Workflow
+
+### Viewing Logs
+
+To view logs for any container:
 
 ```bash
-# ساخت پروژه
-npm run build
-
-# اجرای نسخه تولید
-npm start
+docker-compose logs -f [service-name]
 ```
 
-## نکات مهم
+Where `[service-name]` can be `nextjs`, `mysql`, `nginx-proxy`, or `phpmyadmin`.
 
-### افزایش حافظه Node.js
+### Restarting Services
 
-اگر هنگام ساخت پروژه با خطای کمبود حافظه مواجه شدید، می‌توانید حافظه Node.js را افزایش دهید:
+If you make changes to the Docker configuration, you may need to restart the services:
 
 ```bash
-export NODE_OPTIONS="--max-old-space-size=8192"
-npm run build
+docker-compose restart
 ```
 
-### دسترسی به phpMyAdmin (اختیاری)
+Or to restart a specific service:
 
-برای مدیریت راحت‌تر پایگاه داده، می‌توانید phpMyAdmin را نصب کنید:
-
-**برای Ubuntu/Debian:**
 ```bash
-sudo apt install phpmyadmin
+docker-compose restart [service-name]
 ```
 
-سپس به آدرس `http://localhost/phpmyadmin` دسترسی پیدا کنید.
+### Stopping the Environment
 
-**برای Windows:**
-- از طریق XAMPP یا WAMP می‌توانید به phpMyAdmin دسترسی داشته باشید.
+To stop all containers:
 
-### اطلاعات ورود به سیستم
+```bash
+docker-compose down
+```
 
-برای ورود به سیستم از اطلاعات زیر استفاده کنید:
+## Database Management
 
-- ایمیل: `admin@example.com`
-- رمز عبور: `admin123`
+### Accessing the Database
 
-## عیب‌یابی
+You can access the database through PHPMyAdmin at http://localhost:8080 or directly using the MySQL command line:
 
-### مشکلات پایگاه داده
+```bash
+docker exec -it mysql mysql -uroot -p1234 crm_system
+```
 
-اگر با خطای اتصال به پایگاه داده مواجه شدید:
+### Importing Data
 
-1. مطمئن شوید که سرویس MySQL در حال اجراست:
+The database is automatically imported from the `crm_system.sql` file in the root directory when the MySQL container starts for the first time.
+
+If you need to reimport the database:
+
+1. Stop the containers:
    ```bash
-   sudo systemctl status mysql
+   docker-compose down
    ```
 
-2. اطلاعات اتصال به پایگاه داده در فایل `.env.local` را بررسی کنید.
-
-3. دسترسی‌های کاربر پایگاه داده را بررسی کنید:
+2. Remove the MySQL volume:
    ```bash
-   mysql -u root -p
-   SHOW GRANTS FOR 'crm_user'@'localhost';
+   docker volume rm cem-crm-main_mysql_data
    ```
 
-### مشکلات Node.js
-
-اگر با خطاهای Node.js مواجه شدید:
-
-1. مطمئن شوید که نسخه Node.js شما سازگار است:
+3. Restart the containers:
    ```bash
-   node -v
+   docker-compose up -d
    ```
 
-2. پاک کردن کش npm و نصب مجدد وابستگی‌ها:
+## Troubleshooting
+
+### Container Logs
+
+To view logs for a specific container:
+
+```bash
+docker logs nextjs
+docker logs mysql
+docker logs nginx-proxy
+```
+
+### Database Connection Issues
+
+If the Next.js application cannot connect to the database:
+
+1. Ensure the MySQL container is running:
    ```bash
-   npm cache clean --force
-   rm -rf node_modules
-   npm install
+   docker ps | grep mysql
    ```
 
-### مشکلات سرویس ایمیل
+2. Check MySQL logs:
+   ```bash
+   docker logs mysql
+   ```
 
-اگر سرویس ایمیل کار نمی‌کند:
+3. Verify the database was imported correctly:
+   ```bash
+   docker exec mysql mysql -uroot -p1234 -e "SHOW DATABASES;"
+   ```
 
-1. مطمئن شوید که اطلاعات SMTP در فایل `.env.local` درست است.
+### Port Conflicts
 
-2. اگر از Gmail استفاده می‌کنید، مطمئن شوید که "دسترسی برنامه‌های کم‌امن" را فعال کرده‌اید یا از رمز عبور برنامه استفاده می‌کنید.
-
-3. اطلاعات OAuth2 گوگل را بررسی کنید.
+If you encounter port conflicts (e.g., "address already in use"), you may have other services running on those ports. You can modify the port mappings in the `docker-compose.yml` file to use different ports.

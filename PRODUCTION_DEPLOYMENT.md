@@ -70,10 +70,14 @@ Important variables to update:
 - `JWT_SECRET`: Set a secure random string for JWT authentication
 - `NEXTAUTH_SECRET`: Set a secure random string for NextAuth
 - `NEXTAUTH_URL`: Set to your domain name (e.g., https://your-domain.com)
+- `EMAIL_HOST`: Your SMTP server (e.g., smtp.gmail.com)
+- `EMAIL_PORT`: Your SMTP port (usually 587 for TLS)
 - `EMAIL_USER`: Your email address for sending emails
 - `EMAIL_PASS`: Your email app password
 - `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `GOOGLE_REFRESH_TOKEN`: Your Google OAuth credentials (if using Gmail)
 - `DOMAIN_NAME`: Your domain name (e.g., your-domain.com)
+
+**Important Security Note**: Never commit your `.env.production` file to Git. It contains sensitive information that should be kept private. The `.env.production` file should be added to your `.gitignore` file.
 
 ## SSL Certificate Setup
 
@@ -150,7 +154,19 @@ docker-compose -f docker-compose.init.yml down
 
 ## Full Deployment
 
-### 1. Start the Production Environment
+### 1. Clean Docker Environment (Recommended)
+
+Before starting the production environment, it's recommended to clean up any existing Docker resources to avoid conflicts:
+
+```bash
+# Make the cleanup script executable
+chmod +x docker-cleanup.sh
+
+# Run the cleanup script
+./docker-cleanup.sh
+```
+
+### 2. Start the Production Environment
 
 ```bash
 # Make sure the Nginx script is executable
@@ -210,13 +226,20 @@ The Next.js build process requires significant memory resources due to the large
 
 To resolve memory issues during build:
 
-1. **Use the production Dockerfile**:
+1. **Use our optimized Dockerfile**:
+   Our new Dockerfile is optimized for both development and production use, with proper multi-stage builds to reduce memory usage.
    ```bash
-   # Make sure to use the production Dockerfile
+   # Make sure to use the production configuration
    docker-compose -f docker-compose.production.yml up -d
    ```
 
-2. **Add swap space to your server**:
+2. **Clean Docker environment before building**:
+   Use the provided cleanup script to free up resources:
+   ```bash
+   ./docker-cleanup.sh
+   ```
+
+3. **Add swap space to your server**:
    ```bash
    # Create a 8GB swap file
    sudo fallocate -l 8G /swapfile
@@ -228,10 +251,10 @@ To resolve memory issues during build:
    echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
    ```
 
-3. **Increase server resources**:
+4. **Increase server resources**:
    If possible, upgrade your server to have at least 8GB of RAM for a smooth build process.
 
-4. **Build locally and deploy artifacts**:
+5. **Build locally and deploy artifacts**:
    As a last resort, you can build the application locally and deploy only the built artifacts to the server.
 
 ### Database Connection Issues
