@@ -2,7 +2,7 @@ services:
   mysql:
     image: mariadb:10.5
     env_file:
-      - .env.production
+      - .env.local
     environment:
       MYSQL_ROOT_PASSWORD: ${DATABASE_PASSWORD}
       MYSQL_DATABASE: ${DATABASE_NAME}
@@ -23,13 +23,17 @@ services:
       context: .
       dockerfile: Dockerfile
     env_file:
-      - .env.production
+      - .env.local
     environment:
       - NODE_ENV=production
+    deploy:
+      resources:
+        limits:
+          memory: 4G
     volumes:
-      - ./public/uploads:/app/public/uploads
-      - /app/node_modules
-      - /app/.next
+      - ./public/uploads:/usr/src/public/uploads
+      - /usr/src/node_modules
+      - /usr/src/.next
     depends_on:
       mysql:
         condition: service_healthy
@@ -58,7 +62,7 @@ services:
     image: phpmyadmin/phpmyadmin
     container_name: phpmyadmin
     env_file:
-      - .env.production
+      - .env.local
     environment:
       PMA_HOST: mysql
       PMA_PORT: 3306
