@@ -204,6 +204,36 @@ Where `[service-name]` can be `nextjs`, `mysql`, `nginx`, `certbot`, or `phpmyad
 
 ## Troubleshooting
 
+### Build Memory Issues
+
+The Next.js build process requires significant memory resources due to the large number of dependencies. If you encounter build failures with errors like `SIGKILL` or `npm error signal SIGKILL`, it's likely due to memory limitations.
+
+To resolve memory issues during build:
+
+1. **Use the production Dockerfile**:
+   ```bash
+   # Make sure to use the production Dockerfile
+   docker-compose -f docker-compose.production.yml up -d
+   ```
+
+2. **Add swap space to your server**:
+   ```bash
+   # Create a 8GB swap file
+   sudo fallocate -l 8G /swapfile
+   sudo chmod 600 /swapfile
+   sudo mkswap /swapfile
+   sudo swapon /swapfile
+   
+   # Make swap permanent
+   echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
+   ```
+
+3. **Increase server resources**:
+   If possible, upgrade your server to have at least 8GB of RAM for a smooth build process.
+
+4. **Build locally and deploy artifacts**:
+   As a last resort, you can build the application locally and deploy only the built artifacts to the server.
+
 ### Database Connection Issues
 
 If the application cannot connect to the database:

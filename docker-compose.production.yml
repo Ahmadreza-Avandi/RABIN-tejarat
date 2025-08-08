@@ -23,7 +23,7 @@ services:
   nextjs:
     build:
       context: .
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.production
     env_file:
       - .env.production
     environment:
@@ -31,6 +31,8 @@ services:
     deploy:
       resources:
         limits:
+          memory: 8G
+        reservations:
           memory: 4G
     volumes:
       - ./public/uploads:/usr/src/public/uploads
