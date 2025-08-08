@@ -3,7 +3,7 @@
 -- https://www.phpmyadmin.net/
 --
 -- Host: localhost
--- Generation Time: Aug 08, 2025 at 07:21 AM
+-- Generation Time: Aug 08, 2025 at 02:31 PM
 -- Server version: 11.8.2-MariaDB
 -- PHP Version: 8.4.10
 
@@ -1268,7 +1268,7 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `name`, `email`, `password_hash`, `password`, `role`, `status`, `avatar`, `avatar_url`, `phone`, `team`, `last_active`, `last_login`, `created_at`, `updated_at`, `created_by`) VALUES
-('ceo-001', 'مهندس کریمی', 'Robintejarat@gmail.com', '$2b$10$ZD73doDN4r.HxJ5LPjGnXOOgRcYTBi3aLQjyR/WbL.J0F41lY1YcK', 'admin123', 'ceo', 'active', NULL, NULL, '', NULL, '2025-07-20 04:57:32', '2025-08-07 19:34:34', '2025-07-20 04:57:32', '2025-08-08 07:02:14', NULL);
+('ceo-001', 'مهندس کریمی', 'Robintejarat@gmail.com', '$2b$10$ZD73doDN4r.HxJ5LPjGnXOOgRcYTBi3aLQjyR/WbL.J0F41lY1YcK', 'admin123', 'ceo', 'active', NULL, NULL, '', NULL, '2025-07-20 04:57:32', '2025-08-08 10:08:36', '2025-07-20 04:57:32', '2025-08-08 10:08:36', NULL);
 
 -- --------------------------------------------------------
 

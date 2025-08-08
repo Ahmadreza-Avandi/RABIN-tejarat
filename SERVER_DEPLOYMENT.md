@@ -12,10 +12,7 @@ This is a simplified guide for deploying the CEM-CRM system on your server.
 
 2. **Configure environment variables**
    ```bash
-   # Copy the production environment file
-   cp .env.template .env.production
-   
-   # Edit the file with your server settings
+   # Edit the production environment file with your server settings
    nano .env.production
    ```
    

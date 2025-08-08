@@ -5,8 +5,13 @@ const nextConfig = {
   },
   images: { unoptimized: true },
   webpack: (config) => {
-    // Optimize webpack configuration
-    config.optimization.minimize = false; // Disable minimization for faster builds
+    // In production, we want minimization for better performance
+    if (process.env.NODE_ENV === 'production') {
+      config.optimization.minimize = true;
+    } else {
+      // Disable minimization for faster development builds
+      config.optimization.minimize = false;
+    }
     return config;
   },
   experimental: {

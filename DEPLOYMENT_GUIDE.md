@@ -85,20 +85,6 @@ git pull
 docker compose up -d --build
 ```
 
-### Backup and Restore
-
-Database backups are stored in the `mysql_data` volume. You can create a backup with:
-
-```bash
-docker exec mysql mysqldump -uroot -p<your-password> crm_system > backup.sql
-```
-
-To restore from a backup:
-
-```bash
-docker exec -i mysql mysql -uroot -p<your-password> crm_system < backup.sql
-```
-
 ### Logs
 
 To view logs for any container:
