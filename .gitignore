@@ -30,6 +30,8 @@ yarn-error.log*
 .env.local
 .env.development
 .env.server
+.env.production
+.env.local.updated
 
 # Sensitive files
 *.pem
