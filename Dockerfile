@@ -8,17 +8,11 @@ RUN npm ci
 FROM node:18 AS builder
 WORKDIR /app
 
-# Set up swap space to handle memory spikes
-RUN fallocate -l 2G /swapfile && \
-    chmod 600 /swapfile && \
-    mkswap /swapfile && \
-    swapon /swapfile
-
 # Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Set environment variables for build
+# Set environment variables for build with increased memory
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV NEXT_TELEMETRY_DISABLED=1

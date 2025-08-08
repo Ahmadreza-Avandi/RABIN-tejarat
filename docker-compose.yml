@@ -26,6 +26,7 @@ services:
       - DATABASE_URL=mysql://root:1234@mysql:3306/crm_system
       - DATABASE_HOST=mysql
       - NODE_ENV=production
+      - NODE_OPTIONS=--max-old-space-size=4096
     volumes:
       - .:/app
       - /app/node_modules
@@ -37,6 +38,12 @@ services:
     networks:
       - app-network
     container_name: nextjs
+    deploy:
+      resources:
+        limits:
+          memory: 6G
+        reservations:
+          memory: 4G
 
   nginx:
     image: nginx:latest
@@ -53,19 +60,6 @@ services:
       - nextjs
     networks:
       - app-network
-
-  phpmyadmin:
-    image: phpmyadmin/phpmyadmin
-    container_name: phpmyadmin
-    environment:
-      PMA_HOST: mysql
-      PMA_PORT: 3306
-      MYSQL_ROOT_PASSWORD: 1234
-    depends_on:
-      - mysql
-    networks:
-      - app-network
-    restart: always
 
 networks:
   app-network:
