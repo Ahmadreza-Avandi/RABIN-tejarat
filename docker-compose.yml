@@ -17,20 +17,33 @@ services:
     restart: always
     networks:
       - app-network
+    # Add performance tuning for MySQL
+    command: --innodb-buffer-pool-size=256M --max-connections=200
+    # Add resource limits for MySQL
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   nextjs:
     build:
       context: .
       dockerfile: Dockerfile
+      # Add build args for better caching
+      args:
+        - NODE_ENV=production
     environment:
       - DATABASE_URL=mysql://root:1234@mysql:3306/crm_system
       - DATABASE_HOST=mysql
       - NODE_ENV=production
       - NODE_OPTIONS=--max-old-space-size=4096
-    volumes:
-      - .:/app
-      - /app/node_modules
-      - /app/.next
+    # Use bind mounts only for development, not needed for production
+    # volumes:
+    #   - .:/app
+    #   - /app/node_modules
+    #   - /app/.next
     depends_on:
       mysql:
         condition: service_healthy
@@ -41,12 +54,19 @@ services:
     deploy:
       resources:
         limits:
-          memory: 6G
-        reservations:
           memory: 4G
+        reservations:
+          memory: 2G
+    # Add healthcheck for nextjs
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
 
   nginx:
-    image: nginx:latest
+    image: nginx:alpine # Use alpine for smaller image
     container_name: nginx-proxy
     restart: always
     ports:
@@ -60,6 +80,13 @@ services:
       - nextjs
     networks:
       - app-network
+    # Add resource limits for nginx
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
 
 networks:
   app-network:

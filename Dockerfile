@@ -1,34 +1,43 @@
-# Stage 1: Install dependencies
-FROM node:18-alpine AS deps
+# Use Node 18 Alpine as the base image for all stages
+FROM node:18-alpine AS base
 WORKDIR /app
-COPY package*.json ./
-RUN npm ci
 
-# Stage 2: Build the application
-FROM node:18 AS builder
+# Install dependencies only when needed - optimized caching
+FROM base AS deps
+# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed
+RUN apk add --no-cache libc6-compat
+
+# Copy package files
+COPY package.json package-lock.json* ./
+
+# Install dependencies with clean cache
+RUN npm ci --only=production && npm cache clean --force
+
+# Rebuild the source code only when needed
+FROM base AS builder
 WORKDIR /app
 
 # Copy dependencies from deps stage
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Set environment variables for build with increased memory
+# Set environment variables for optimized build
 ENV NODE_ENV=production
-ENV NODE_OPTIONS="--max-old-space-size=4096"
 ENV NEXT_TELEMETRY_DISABLED=1
+ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-# Build the application with increased memory
+# Build the application in standalone mode for better performance
 RUN npm run build
 
-# Stage 3: Production image
-FROM node:18-alpine AS runner
+# Production image, copy all the files and run next
+FROM base AS runner
 WORKDIR /app
 
-# Set production environment
+# Set environment variables
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Create non-root user
+# Create a non-root user
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
