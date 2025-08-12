@@ -13,7 +13,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { useToast } from '@/hooks/use-toast';
 import { PersianDatePicker } from '@/components/ui/persian-date-picker';
 import {
-    Plus, DollarSign, TrendingUp, Target, Calendar, Handshake,
+    Plus, DollarSign, TrendingUp, Target, Calendar, Users,
     Search, User, CheckCircle, Clock, AlertTriangle, Eye, Edit,
     Trash2, Filter
 } from 'lucide-react';
@@ -400,7 +400,7 @@ export default function DealsPage() {
                 <Card>
                     <CardContent className="p-6">
                         <div className="flex items-center">
-                            <Handshake className="h-8 w-8 text-primary" />
+                            <Users className="h-8 w-8 text-primary" />
                             <div className="mr-4">
                                 <p className="text-sm font-medium text-muted-foreground font-vazir">کل معاملات</p>
                                 <p className="text-2xl font-bold font-vazir">{deals.length.toLocaleString('fa-IR')}</p>
@@ -559,7 +559,7 @@ export default function DealsPage() {
 
                     {filteredDeals.length === 0 && (
                         <div className="text-center py-12">
-                            <Handshake className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+                            <Users className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
                             <h3 className="text-lg font-medium font-vazir mb-2">معامله‌ای یافت نشد</h3>
                             <p className="text-muted-foreground font-vazir mb-4">
                                 {searchTerm || stageFilter !== 'all'

@@ -29,7 +29,10 @@ export async function middleware(request: NextRequest) {
     pathname.startsWith('/_next') ||
     pathname.startsWith('/api/auth') ||
     pathname.startsWith('/api/test-email') ||
+    pathname.startsWith('/api/feedback/form/') ||
+    pathname.startsWith('/api/feedback/submit') ||
     pathname.startsWith('/public') ||
+    pathname.startsWith('/feedback/form/') ||
     pathname === '/login' ||
     pathname === '/email-test' ||
     pathname === '/favicon.ico' ||
@@ -57,8 +60,11 @@ export async function middleware(request: NextRequest) {
     }
   }
 
-  // For API routes (except auth), verify token and add user info to headers
-  if (pathname.startsWith('/api') && !pathname.startsWith('/api/auth')) {
+  // For API routes (except auth and feedback), verify token and add user info to headers
+  if (pathname.startsWith('/api') && 
+      !pathname.startsWith('/api/auth') && 
+      !pathname.startsWith('/api/feedback/form/') && 
+      !pathname.startsWith('/api/feedback/submit')) {
     const token = request.headers.get('authorization')?.replace('Bearer ', '') ||
       request.cookies.get('auth-token')?.value;
 

@@ -23,6 +23,7 @@ import {
 interface Customer {
     id: string;
     name: string;
+    email: string;
 }
 
 interface Product {
@@ -175,6 +176,83 @@ export default function RecordSalePage() {
                     title: "موفق",
                     description: "فروش با موفقیت ثبت شد"
                 });
+                
+                // Show confirmation dialog for sending feedback form
+                const sendFeedback = window.confirm("آیا می‌خواهید فرم بازخورد فروش را برای مشتری ارسال کنید؟");
+                
+                if (sendFeedback) {
+                    // Get customer info
+                    const customer = customers.find(c => c.id === saleData.customer_id);
+                    
+                    if (customer) {
+                        try {
+                            // Get sales feedback form
+                            const formsResponse = await fetch('/api/feedback/forms?type=sales', {
+                                headers: {
+                                    'Authorization': token ? `Bearer ${token}` : '',
+                                },
+                            });
+                            
+                            const formsData = await formsResponse.json();
+                            
+                            if (formsData.success && formsData.data.length > 0) {
+                                const salesForm = formsData.data.find((form: { id: string, type: string }) => form.type === 'sales');
+                                
+                                if (salesForm) {
+                                    // Send feedback form
+                                    const sendResponse = await fetch('/api/feedback/forms/send', {
+                                        method: 'POST',
+                                        headers: {
+                                            'Content-Type': 'application/json',
+                                            'Authorization': token ? `Bearer ${token}` : '',
+                                        },
+                                        body: JSON.stringify({
+                                            formId: salesForm.id,
+                                            customerId: customer.id,
+                                            customerEmail: customer.email,
+                                            customerName: customer.name,
+                                        }),
+                                    });
+                                    
+                                    const sendResult = await sendResponse.json();
+                                    
+                                    if (sendResult.success) {
+                                        toast({
+                                            title: "موفق",
+                                            description: "فرم بازخورد با موفقیت ارسال شد"
+                                        });
+                                    } else {
+                                        toast({
+                                            title: "خطا",
+                                            description: "خطا در ارسال فرم بازخورد: " + (sendResult.message || "خطای نامشخص"),
+                                            variant: "destructive"
+                                        });
+                                    }
+                                } else {
+                                    toast({
+                                        title: "خطا",
+                                        description: "فرم بازخورد فروش یافت نشد",
+                                        variant: "destructive"
+                                    });
+                                }
+                            } else {
+                                toast({
+                                    title: "خطا",
+                                    description: "فرم بازخورد فروش یافت نشد",
+                                    variant: "destructive"
+                                });
+                            }
+                        } catch (error) {
+                            console.error('Error sending feedback form:', error);
+                            toast({
+                                title: "خطا",
+                                description: "خطا در ارسال فرم بازخورد",
+                                variant: "destructive"
+                            });
+                        }
+                    }
+                }
+                
                 router.push('/dashboard/sales');
             } else {
                 toast({

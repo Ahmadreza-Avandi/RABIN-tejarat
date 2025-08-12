@@ -213,8 +213,66 @@ export async function POST(req: NextRequest) {
             WHERE id = ?
         `, [message || 'فایل', conversationId]);
 
-        // Send notifications (optional, if needed)
-        // await notificationService.sendNotification(...);
+        // Send notifications for new message
+        try {
+            // const notificationService = require('../../../lib/notification-service-v2.js');
+            const notificationService = require('@/lib/notification-service.js');
+
+            // Get receiver info for notification
+            const receiverInfo = await executeQuery(`
+                SELECT name, email, phone FROM users WHERE id = ?
+            `, [receiverId]);
+
+            console.log('🔍 Receiver info for notification:', receiverInfo);
+
+            if (receiverInfo && receiverInfo.length > 0) {
+                const receiver = receiverInfo[0];
+                const senderInfo = await executeQuery(`
+                    SELECT name FROM users WHERE id = ?
+                `, [currentUserId]);
+
+                const senderName = senderInfo && senderInfo.length > 0 ? senderInfo[0].name : 'کاربر';
+
+                console.log('📧 Notification details:', {
+                    receiverEmail: receiver.email,
+                    receiverPhone: receiver.phone,
+                    receiverName: receiver.name,
+                    senderName: senderName,
+                    messageLength: message?.length || 0
+                });
+
+                // Send SMS notification if phone number exists
+                if (receiver.phone) {
+                    console.log('📱 Sending SMS notification to:', receiver.phone);
+                    const smsResult = await notificationService.sendNewMessageSMS(
+                        receiver.phone,
+                        receiver.name,
+                        senderName,
+                        message
+                    );
+                    console.log('📱 SMS notification result:', smsResult);
+                } else {
+                    console.log('⚠️ No phone number for SMS notification');
+                }
+
+                // Send email notification if email exists
+                if (receiver.email) {
+                    console.log('📧 Sending email notification to:', receiver.email);
+                    const emailResult = await notificationService.sendNewMessageEmail(
+                        receiver.email,
+                        receiver.name,
+                        senderName,
+                        message
+                    );
+                    console.log('📧 Email notification result:', emailResult);
+                } else {
+                    console.log('⚠️ No email address for email notification');
+                }
+            }
+        } catch (notificationError) {
+            console.error('Notification error:', notificationError);
+            // Don't fail the message sending if notification fails
+        }
 
         return NextResponse.json({
             success: true,

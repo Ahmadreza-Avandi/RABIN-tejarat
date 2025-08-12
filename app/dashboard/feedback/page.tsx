@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -20,9 +20,29 @@ import {
     ChevronRight,
     Search,
     FileDown,
-    Plus
+    Plus,
+    Send,
+    Loader2
 } from 'lucide-react';
-import { mockFeedback } from '@/lib/mock-data';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from "@/components/ui/dialog";
+import {
+    Table,
+    TableBody,
+    TableCell,
+    TableHead,
+    TableHeader,
+    TableRow,
+} from "@/components/ui/table";
+import { Checkbox } from "@/components/ui/checkbox";
+import { toast } from "@/components/ui/use-toast";
 
 const statusMap = {
     pending: { label: 'در انتظار بررسی', color: 'bg-yellow-500' },
@@ -55,15 +75,212 @@ export default function FeedbackListPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
 
-    const filteredFeedbacks = mockFeedback.filter(feedback => {
+    // State for feedback data
+    const [feedbacks, setFeedbacks] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [error, setError] = useState<string | null>(null);
+    
+    // State for feedback forms
+    const [feedbackForms, setFeedbackForms] = useState<any[]>([]);
+    const [selectedForm, setSelectedForm] = useState<string>('');
+    
+    // State for contacts
+    const [contacts, setContacts] = useState<any[]>([]);
+    const [selectedContacts, setSelectedContacts] = useState<string[]>([]);
+    const [sendingFeedback, setSendingFeedback] = useState(false);
+    
+    // Dialog state
+    const [sendDialogOpen, setSendDialogOpen] = useState(false);
+    
+    // Fetch feedback data
+    useEffect(() => {
+        const fetchFeedbacks = async () => {
+            try {
+                const token = document.cookie
+                    .split('; ')
+                    .find(row => row.startsWith('auth-token='))
+                    ?.split('=')[1];
+                
+                const response = await fetch('/api/feedback', {
+                    headers: {
+                        'Authorization': token ? `Bearer ${token}` : '',
+                    },
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    setFeedbacks(data.data);
+                } else {
+                    setError('خطا در دریافت بازخوردها');
+                }
+            } catch (error) {
+                console.error('Error fetching feedback:', error);
+                setError('خطا در ارتباط با سرور');
+            } finally {
+                setLoading(false);
+            }
+        };
+        
+        fetchFeedbacks();
+    }, []);
+    
+    // Fetch feedback forms
+    useEffect(() => {
+        const fetchFeedbackForms = async () => {
+            try {
+                const token = document.cookie
+                    .split('; ')
+                    .find(row => row.startsWith('auth-token='))
+                    ?.split('=')[1];
+                
+                const response = await fetch('/api/feedback/forms', {
+                    headers: {
+                        'Authorization': token ? `Bearer ${token}` : '',
+                    },
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('Loaded feedback forms:', data.data);
+                    setFeedbackForms(data.data);
+                    if (data.data.length > 0) {
+                        setSelectedForm(data.data[0].id);
+                    } else {
+                        console.warn('No feedback forms found in the database');
+                    }
+                } else {
+                    console.error('Failed to load feedback forms:', data.message);
+                }
+            } catch (error) {
+                console.error('Error fetching feedback forms:', error);
+            }
+        };
+        
+        fetchFeedbackForms();
+    }, []);
+    
+    // Fetch contacts
+    useEffect(() => {
+        const fetchContacts = async () => {
+            try {
+                const token = document.cookie
+                    .split('; ')
+                    .find(row => row.startsWith('auth-token='))
+                    ?.split('=')[1];
+                
+                const response = await fetch('/api/contacts', {
+                    headers: {
+                        'Authorization': token ? `Bearer ${token}` : '',
+                    },
+                });
+                const data = await response.json();
+                
+                if (data.success) {
+                    console.log('Loaded contacts:', data.data);
+                    setContacts(data.data);
+                    if (data.data.length === 0) {
+                        console.warn('No contacts found in the database');
+                    }
+                } else {
+                    console.error('Failed to load contacts:', data.message);
+                }
+            } catch (error) {
+                console.error('Error fetching contacts:', error);
+            }
+        };
+        
+        fetchContacts();
+    }, []);
+    
+    // Handle sending feedback forms
+    const handleSendFeedbackForms = async () => {
+        if (!selectedForm || selectedContacts.length === 0) {
+            toast({
+                title: "خطا",
+                description: "لطفا فرم و حداقل یک مخاطب را انتخاب کنید",
+                variant: "destructive",
+            });
+            return;
+        }
+        
+        setSendingFeedback(true);
+        
+        try {
+            const results = [];
+            
+            for (const contactId of selectedContacts) {
+                const contact = contacts.find(c => c.id === contactId);
+                
+                if (contact) {
+                    const response = await fetch('/api/feedback/forms/send', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({
+                            formId: selectedForm,
+                            customerId: contact.id,
+                            customerEmail: contact.email,
+                            customerName: contact.name,
+                        }),
+                    });
+                    
+                    const result = await response.json();
+                    results.push(result);
+                }
+            }
+            
+            const successCount = results.filter(r => r.success).length;
+            
+            toast({
+                title: "ارسال فرم بازخورد",
+                description: `فرم بازخورد برای ${successCount} مخاطب از ${selectedContacts.length} مخاطب با موفقیت ارسال شد`,
+                variant: successCount === selectedContacts.length ? "default" : "destructive",
+            });
+            
+            setSendDialogOpen(false);
+            setSelectedContacts([]);
+        } catch (error) {
+            console.error('Error sending feedback forms:', error);
+            toast({
+                title: "خطا",
+                description: "خطا در ارسال فرم بازخورد",
+                variant: "destructive",
+            });
+        } finally {
+            setSendingFeedback(false);
+        }
+    };
+    
+    // Toggle contact selection
+    const toggleContactSelection = (contactId: string) => {
+        setSelectedContacts(prev =>
+            prev.includes(contactId)
+                ? prev.filter(id => id !== contactId)
+                : [...prev, contactId]
+        );
+    };
+    
+    // Select/deselect all contacts
+    const toggleSelectAll = () => {
+        if (selectedContacts.length === contacts.length) {
+            setSelectedContacts([]);
+        } else {
+            setSelectedContacts(contacts.map(contact => contact.id));
+        }
+    };
+    
+    const filteredFeedbacks = feedbacks.filter(feedback => {
+        if (!feedback) return false;
+        
         const matchesSearch =
-            feedback.customerName.includes(searchTerm) ||
-            feedback.title?.includes(searchTerm) ||
-            feedback.description?.includes(searchTerm);
+            (feedback.customer_name || '').includes(searchTerm) ||
+            (feedback.title || '').includes(searchTerm) ||
+            (feedback.comment || '').includes(searchTerm);
 
-        const matchesStatus = selectedStatus === 'all' || feedback.status === selectedStatus;
-        const matchesType = selectedType === 'all' || feedback.type === selectedType;
-        const matchesPriority = selectedPriority === 'all' || feedback.priority === selectedPriority;
+        const matchesStatus = !selectedStatus || selectedStatus === 'all' || feedback.status === selectedStatus;
+        const matchesType = !selectedType || selectedType === 'all' || feedback.type === selectedType;
+        const matchesPriority = !selectedPriority || selectedPriority === 'all' || feedback.priority === selectedPriority;
 
         return matchesSearch && matchesStatus && matchesType && matchesPriority;
     });
@@ -79,9 +296,204 @@ export default function FeedbackListPage() {
             <div className="flex justify-between items-center mb-6">
                 <div>
                     <h1 className="text-2xl font-bold mb-2">لیست بازخوردها</h1>
-                    <p className="text-muted-foreground">مدیریت و پیگیری بازخوردهای دریافتی</p>
+                    <p className="text-muted-forenpm run setup-feedbackground">مدیریت و پیگیری بازخوردهای دریافتی</p>
                 </div>
                 <div className="flex gap-2">
+                    <Dialog open={sendDialogOpen} onOpenChange={setSendDialogOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="default" className="bg-green-600 hover:bg-green-700">
+                                <Send className="ml-2 h-4 w-4" />
+                                ارسال فرم بازخورد
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent className="sm:max-w-[600px]">
+                            <DialogHeader>
+                                <DialogTitle>ارسال فرم بازخورد</DialogTitle>
+                                <DialogDescription>
+                                    فرم بازخورد را انتخاب کرده و برای مخاطبین مورد نظر ارسال کنید.
+                                </DialogDescription>
+                            </DialogHeader>
+                            <div className="py-4">
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium mb-2">انتخاب فرم بازخورد</label>
+                                    {loading ? (
+                                        <div className="flex items-center justify-center p-4 border rounded-md">
+                                            <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                                            <span>در حال بارگذاری فرم‌ها...</span>
+                                        </div>
+                                    ) : feedbackForms.length === 0 ? (
+                                        <div className="p-4 border rounded-md text-center">
+                                            <p className="text-red-500 mb-2">هیچ فرم بازخوردی یافت نشد.</p>
+                                            <Button
+                                                onClick={async () => {
+                                                    try {
+                                                        const token = document.cookie
+                                                            .split('; ')
+                                                            .find(row => row.startsWith('auth-token='))
+                                                            ?.split('=')[1];
+                                                        
+                                                        setLoading(true);
+                                                        const response = await fetch('/api/feedback/forms/setup', {
+                                                            method: 'POST',
+                                                            headers: {
+                                                                'Authorization': token ? `Bearer ${token}` : '',
+                                                            },
+                                                        });
+                                                        
+                                                        const result = await response.json();
+                                                        
+                                                        if (result.success) {
+                                                            toast({
+                                                                title: "موفق",
+                                                                description: "فرم‌های بازخورد با موفقیت ایجاد شدند",
+                                                            });
+                                                            
+                                                            // Reload feedback forms
+                                                            const formsResponse = await fetch('/api/feedback/forms', {
+                                                                headers: {
+                                                                    'Authorization': token ? `Bearer ${token}` : '',
+                                                                },
+                                                            });
+                                                            
+                                                            const formsData = await formsResponse.json();
+                                                            
+                                                            if (formsData.success) {
+                                                                setFeedbackForms(formsData.data);
+                                                                if (formsData.data.length > 0) {
+                                                                    setSelectedForm(formsData.data[0].id);
+                                                                }
+                                                            }
+                                                        } else {
+                                                            toast({
+                                                                title: "خطا",
+                                                                description: result.message || "خطا در ایجاد فرم‌های بازخورد",
+                                                                variant: "destructive",
+                                                            });
+                                                        }
+                                                    } catch (error) {
+                                                        console.error('Error creating feedback forms:', error);
+                                                        toast({
+                                                            title: "خطا",
+                                                            description: "خطا در ارتباط با سرور",
+                                                            variant: "destructive",
+                                                        });
+                                                    } finally {
+                                                        setLoading(false);
+                                                    }
+                                                }}
+                                                className="bg-blue-600 hover:bg-blue-700 mt-2"
+                                            >
+                                                ایجاد فرم‌های بازخورد پیش‌فرض
+                                            </Button>
+                                        </div>
+                                    ) : (
+                                        <Select value={selectedForm} onValueChange={setSelectedForm}>
+                                            <SelectTrigger>
+                                                <SelectValue placeholder="انتخاب فرم بازخورد" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {feedbackForms.map(form => (
+                                                    <SelectItem key={form.id} value={form.id}>
+                                                        {form.title} ({form.type === 'sales' ? 'فروش' : 'محصول'})
+                                                    </SelectItem>
+                                                ))}
+                                            </SelectContent>
+                                        </Select>
+                                    )}
+                                </div>
+                                
+                                <div>
+                                    <div className="flex justify-between items-center mb-2">
+                                        <label className="block text-sm font-medium">انتخاب مخاطبین</label>
+                                        {contacts.length > 0 && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={toggleSelectAll}
+                                                className="h-8 px-2 text-xs"
+                                            >
+                                                {selectedContacts.length === contacts.length ? 'لغو انتخاب همه' : 'انتخاب همه'}
+                                            </Button>
+                                        )}
+                                    </div>
+                                    <div className="border rounded-md h-64 overflow-y-auto">
+                                        {loading ? (
+                                            <div className="flex items-center justify-center h-full">
+                                                <Loader2 className="h-6 w-6 animate-spin text-primary mr-2" />
+                                                <span>در حال بارگذاری مخاطبین...</span>
+                                            </div>
+                                        ) : contacts.length === 0 ? (
+                                            <div className="flex items-center justify-center h-full text-center p-4 text-muted-foreground">
+                                                <div>
+                                                    <p className="mb-2 text-red-500">هیچ مخاطبی یافت نشد</p>
+                                                    <p className="text-sm">لطفاً ابتدا مخاطبین را در سیستم ثبت کنید</p>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <Table>
+                                                <TableHeader>
+                                                    <TableRow>
+                                                        <TableHead className="w-12"></TableHead>
+                                                        <TableHead>نام</TableHead>
+                                                        <TableHead>ایمیل</TableHead>
+                                                    </TableRow>
+                                                </TableHeader>
+                                                <TableBody>
+                                                    {contacts.map(contact => (
+                                                        <TableRow key={contact.id}>
+                                                            <TableCell>
+                                                                <Checkbox
+                                                                    checked={selectedContacts.includes(contact.id)}
+                                                                    onCheckedChange={() => toggleContactSelection(contact.id)}
+                                                                />
+                                                            </TableCell>
+                                                            <TableCell>{contact.name}</TableCell>
+                                                            <TableCell>{contact.email}</TableCell>
+                                                        </TableRow>
+                                                    ))}
+                                                </TableBody>
+                                            </Table>
+                                        )}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground mt-2">
+                                        {selectedContacts.length} مخاطب انتخاب شده
+                                    </div>
+                                </div>
+                            </div>
+                            <div className="mt-4 border-t pt-4">
+                                <p className="text-sm text-muted-foreground mb-4">
+                                    با کلیک بر روی دکمه «ارسال فرم»، فرم بازخورد انتخاب شده برای مخاطبین انتخاب شده از طریق ایمیل ارسال خواهد شد.
+                                </p>
+                                <DialogFooter>
+                                    <Button
+                                        variant="outline"
+                                        onClick={() => setSendDialogOpen(false)}
+                                        disabled={sendingFeedback}
+                                    >
+                                        انصراف
+                                    </Button>
+                                    <Button
+                                        onClick={handleSendFeedbackForms}
+                                        disabled={sendingFeedback || selectedContacts.length === 0 || !selectedForm}
+                                        className="bg-green-600 hover:bg-green-700"
+                                    >
+                                        {sendingFeedback ? (
+                                            <>
+                                                <Loader2 className="ml-2 h-4 w-4 animate-spin" />
+                                                در حال ارسال...
+                                            </>
+                                        ) : (
+                                            <>
+                                                <Send className="ml-2 h-4 w-4" />
+                                                ارسال فرم
+                                            </>
+                                        )}
+                                    </Button>
+                                </DialogFooter>
+                            </div>
+                        </DialogContent>
+                    </Dialog>
+                    
                     <Button variant="outline" onClick={() => router.push('/dashboard/feedback/new')}>
                         <Plus className="ml-2 h-4 w-4" />
                         بازخورد جدید

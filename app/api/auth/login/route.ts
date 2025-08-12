@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { loginUser } from '@/lib/auth';
 
 // Import notification service
-const notificationService = require('@/lib/notification-service.js');
+const notificationService = require('@/lib/notification-service-v2.js');
 
 export async function POST(req: NextRequest) {
   try {

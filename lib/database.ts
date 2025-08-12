@@ -2,7 +2,7 @@ import mysql from 'mysql2/promise';
 
 // Database connection configuration
 const dbConfig = {
-  host: process.env.DATABASE_HOST || 'mysql',
+  host: process.env.DATABASE_HOST || 'localhost',
   user: 'root',
   password: '1234',
   database: 'crm_system',

@@ -118,70 +118,9 @@ export async function POST(req: NextRequest) {
                             .replace(/\{phone\}/g, contact.phone || '')
                             .replace(/\{company\}/g, contact.customer_name || '');
 
-                        // Create HTML email template
-                        const htmlContent = `
-                        <!DOCTYPE html>
-                        <html dir="rtl" lang="fa">
-                        <head>
-                            <meta charset="UTF-8">
-                            <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                            <title>${message.subject}</title>
-                            <style>
-                                body {
-                                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                                    line-height: 1.6;
-                                    color: #333;
-                                    max-width: 600px;
-                                    margin: 0 auto;
-                                    padding: 20px;
-                                    background-color: #f4f4f4;
-                                }
-                                .email-container {
-                                    background: white;
-                                    border-radius: 10px;
-                                    overflow: hidden;
-                                    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-                                }
-                                .email-header {
-                                    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-                                    color: white;
-                                    padding: 30px 20px;
-                                    text-align: center;
-                                }
-                                .email-header h1 {
-                                    margin: 0;
-                                    font-size: 24px;
-                                }
-                                .email-body {
-                                    padding: 30px 20px;
-                                    white-space: pre-line;
-                                }
-                                .email-footer {
-                                    background: #f8f9fa;
-                                    padding: 20px;
-                                    text-align: center;
-                                    font-size: 12px;
-                                    color: #666;
-                                    border-top: 1px solid #eee;
-                                }
-                            </style>
-                        </head>
-                        <body>
-                            <div class="email-container">
-                                <div class="email-header">
-                                    <h1>سیستم مدیریت ارتباط با مشتری</h1>
-                                </div>
-                                <div class="email-body">
-                                    ${personalizedContent}
-                                </div>
-                                <div class="email-footer">
-                                    <p>این پیام از سیستم مدیریت ارتباط با مشتری ارسال شده است</p>
-                                    <p>تاریخ ارسال: ${new Date().toLocaleDateString('fa-IR')}</p>
-                                </div>
-                            </div>
-                        </body>
-                        </html>
-                        `;
+                        // Create HTML email template using the new template system
+                        const { generateEmailTemplate } = require('../../../../lib/email-template-helper.js');
+                        const htmlContent = generateEmailTemplate(personalizedContent, message.subject);
 
                         const mailOptions = {
                             from: testAccount.user,

@@ -19,7 +19,7 @@ import {
   Menu,
   X,
   Building2,
-  ChevronLeft,
+
   Activity,
   Calendar,
   Briefcase,
@@ -29,6 +29,7 @@ import {
   Package,
   User,
   Mail,
+  Monitor,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -76,6 +77,7 @@ const iconMap: { [key: string]: React.ComponentType<any> } = {
   'Brain': Brain,
   'Package': Package,
   'Mail': Mail,
+  'Monitor': Monitor,
 };
 
 // نقشه نام‌های نمایشی روت‌ها
@@ -92,9 +94,13 @@ const routeDisplayNames: { [key: string]: string } = {
   '/dashboard/reports': 'گزارش‌ها',
   '/dashboard/daily-reports': 'گزارش‌های روزانه',
   '/dashboard/insights/reports-analysis': 'تحلیل گزارشات',
+  '/dashboard/insights/feedback-analysis': 'تحلیل بازخوردها',
+  '/dashboard/insights/sales-analysis': 'تحلیل فروش',
   '/dashboard/calendar': 'تقویم',
   '/dashboard/profile': 'پروفایل',
   '/dashboard/settings': 'تنظیمات',
+  '/dashboard/system-monitoring': 'مانیتورینگ سیستم',
+  '/dashboard/settings': 'تنظیمات سیستم',
 
   '/dashboard/products': 'محصولات',
 };
@@ -223,11 +229,7 @@ export const ResponsiveSidebar = () => {
             href: '/dashboard/customer-club',
             icon: Users,
           },
-          {
-            title: '🧪 تست ایمیل',
-            href: '/test-email',
-            icon: Mail,
-          },
+
           {
             title: 'هوش مصنوعی و تحلیل',
             href: '/dashboard/insights',
@@ -237,6 +239,16 @@ export const ResponsiveSidebar = () => {
                 title: 'تحلیل گزارشات',
                 href: '/dashboard/insights/reports-analysis',
                 icon: BarChart3,
+              },
+              {
+                title: 'تحلیل بازخوردها',
+                href: '/dashboard/insights/feedback-analysis',
+                icon: MessageCircle,
+              },
+              {
+                title: 'تحلیل فروش',
+                href: '/dashboard/insights/sales-analysis',
+                icon: TrendingUp,
               },
               {
                 title: 'تحلیل صوتی',
@@ -313,12 +325,7 @@ export const ResponsiveSidebar = () => {
       ['products'].includes(m.name)
     );
 
-    const otherModules = filteredModules.filter(m =>
-      !['customers', 'contacts', 'coworkers', 'activities',
-        'sales', 'sales_opportunities', 'feedback', 'feedback_new', 'surveys', 'customer_health', 'customer_club',
-        'reports_analysis',
-        'products'].includes(m.name)
-    );
+
 
     // Add dashboard first if exists
     const dashboardModule = filteredModules.find(m => m.name === 'dashboard');
@@ -329,6 +336,13 @@ export const ResponsiveSidebar = () => {
         icon: iconMap[dashboardModule.icon] || LayoutDashboard,
       });
     }
+
+    // Add System Monitoring
+    navItems.push({
+      title: 'مانیتورینگ سیستم',
+      href: '/dashboard/system-monitoring',
+      icon: Monitor,
+    });
 
 
 
@@ -391,7 +405,7 @@ export const ResponsiveSidebar = () => {
       icon: Users,
     });
 
-    // Add Test Email (temporary for debugging)
+
 
 
     // Add AI & Analytics mega menu
@@ -406,6 +420,16 @@ export const ResponsiveSidebar = () => {
             href: module.route,
             icon: iconMap[module.icon] || BarChart3,
           })),
+          {
+            title: 'تحلیل بازخوردها',
+            href: '/dashboard/insights/feedback-analysis',
+            icon: MessageCircle,
+          },
+          {
+            title: 'تحلیل فروش',
+            href: '/dashboard/insights/sales-analysis',
+            icon: TrendingUp,
+          },
           {
             title: 'تحلیل صوتی',
             href: '/dashboard/insights/audio-analysis',
@@ -424,21 +448,6 @@ export const ResponsiveSidebar = () => {
         icon: Package,
       });
     }
-
-    // جمع‌آوری روت‌های همه آیتم‌های children برای جلوگیری از تکرار
-    const megaMenuRoutes = [
-      ...salesModules,
-      ...cemModules,
-      ...teamModules,
-      ...aiAnalyticsModules,
-      ...productModules,
-    ].map(m => m.route);
-
-    // Add other individual modules (فقط اگر در هیچ مگامنو نباشد)
-
-
-    // Add Settings group if has modules
-
 
     return navItems;
   };
@@ -543,7 +552,7 @@ export const ResponsiveSidebar = () => {
       {/* Sidebar */}
       <div
         className={cn(
-          'fixed left-0 top-0 z-50 h-screen bg-card/95 backdrop-blur-xl border-r border-border/50 transition-all duration-300 shadow-2xl',
+          'fixed left-0 top-0 z-50 h-screen bg-card/95 backdrop-blur-xl border-r border-border/50 transition-all duration-300 shadow-2xl flex flex-col',
           sidebarCollapsed && !isHovered ? 'w-16' : 'w-72'
         )}
         onMouseEnter={handleMouseEnter}
@@ -573,7 +582,8 @@ export const ResponsiveSidebar = () => {
           </div>
         </div>
 
-        <nav className="space-y-2 p-4 overflow-y-auto flex-1 h-[calc(100vh-128px)]">
+        {/* Main Navigation */}
+        <nav className="space-y-2 p-4 overflow-y-auto flex-1">
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -583,19 +593,35 @@ export const ResponsiveSidebar = () => {
           )}
         </nav>
 
-        {/* Profile Section */}
-        <div className="p-4 border-t border-border/50">
-          <Link href="/dashboard/profile">
-            <div className={cn(
-              'flex items-center space-x-3 space-x-reverse rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 group relative overflow-hidden hover:bg-primary/10',
-              pathname === '/dashboard/profile' && 'bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20 text-primary shadow-lg border border-primary/20'
-            )}>
-              <User className="h-5 w-5 flex-shrink-0" />
-              {!sidebarCollapsed && (
-                <span className="font-vazir">پروفایل کاربری</span>
-              )}
-            </div>
-          </Link>
+        {/* Bottom Section: Profile and Settings */}
+        <div className="mt-auto border-t border-border/50">
+          <div className="p-4 space-y-2">
+            {/* Profile Link */}
+            <Link href="/dashboard/profile">
+              <div className={cn(
+                'flex items-center space-x-3 space-x-reverse rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 group relative overflow-hidden hover:bg-primary/10',
+                pathname === '/dashboard/profile' && 'bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20 text-primary shadow-lg border border-primary/20'
+              )}>
+                <User className="h-5 w-5 flex-shrink-0" />
+                {(!sidebarCollapsed || isHovered) && (
+                  <span className="font-vazir">پروفایل کاربری</span>
+                )}
+              </div>
+            </Link>
+
+            {/* Settings Link */}
+            <Link href="/dashboard/settings">
+              <div className={cn(
+                'flex items-center space-x-3 space-x-reverse rounded-xl px-3 py-3 text-sm font-medium transition-all duration-300 group relative overflow-hidden hover:bg-primary/10',
+                pathname === '/dashboard/settings' && 'bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20 text-primary shadow-lg border border-primary/20'
+              )}>
+                <Settings className="h-5 w-5 flex-shrink-0" />
+                {(!sidebarCollapsed || isHovered) && (
+                  <span className="font-vazir">تنظیمات سیستم</span>
+                )}
+              </div>
+            </Link>
+          </div>
         </div>
 
       </div>

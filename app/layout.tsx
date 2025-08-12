@@ -1,7 +1,7 @@
 import './globals.css';
 import type { Metadata } from 'next';
-import { ThemeProvider } from 'next-themes';
 import { Toaster } from '@/components/ui/toaster';
+import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: 'داشبورد مدیریت - شرکت رابین تجارت خاورمیانه',
@@ -20,10 +20,10 @@ export default function RootLayout({
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
       </head>
       <body className="min-h-screen font-vazir">
-        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+        <Providers>
           {children}
           <Toaster />
-        </ThemeProvider>
+        </Providers>
       </body>
     </html>
   );

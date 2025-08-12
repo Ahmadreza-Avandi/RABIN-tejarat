@@ -3,25 +3,26 @@
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import {
-    Chart as ChartJS,
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend,
-} from 'chart.js';
-import { Bar } from 'react-chartjs-2';
+// Chart imports temporarily disabled
+// import {
+//     Chart as ChartJS,
+//     CategoryScale,
+//     LinearScale,
+//     BarElement,
+//     Title,
+//     Tooltip,
+//     Legend,
+// } from 'chart.js';
+// import { Bar } from 'react-chartjs-2';
 
-ChartJS.register(
-    CategoryScale,
-    LinearScale,
-    BarElement,
-    Title,
-    Tooltip,
-    Legend
-);
+// ChartJS.register(
+//     CategoryScale,
+//     LinearScale,
+//     BarElement,
+//     Title,
+//     Tooltip,
+//     Legend
+// );
 
 interface SurveyResponse {
     question: string;
@@ -150,8 +151,18 @@ export default async function SurveyDetailPage({ params }: { params: Promise<{ i
                 {mockSurveyData.questionResponses.map((questionData, index) => (
                     <Card key={index} className="p-6">
                         <h2 className="text-xl font-semibold mb-4">{questionData.question}</h2>
-                        <div className="h-[300px]">
-                            <Bar data={generateChartData(questionData)} options={chartOptions} />
+                        <div className="h-[300px] flex items-center justify-center bg-gray-50 rounded-lg">
+                            <div className="text-center">
+                                <p className="text-gray-500 mb-4">نمودار در حال توسعه است</p>
+                                <div className="space-y-2">
+                                    {questionData.responses.map((response, idx) => (
+                                        <div key={idx} className="flex justify-between items-center p-2 bg-white rounded">
+                                            <span className="text-sm">{response.answer}</span>
+                                            <span className="font-bold text-primary">{response.count}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
                         </div>
                     </Card>
                 ))}

@@ -2,6 +2,8 @@ import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { mockInsightsData } from '@/lib/mock-data';
+import Link from 'next/link';
+import { Brain, MessageCircle, TrendingUp, BarChart3 } from 'lucide-react';
 
 const impactColors = {
     high: "text-red-500 bg-red-50",
@@ -26,6 +28,48 @@ export default function InsightsPage() {
                     </p>
                 </div>
                 <Button>فیلتر نتایج</Button>
+            </div>
+
+            {/* AI Analysis Tools */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-8">
+                <Link href="/dashboard/insights/feedback-analysis">
+                    <Card className="p-6 hover:shadow-md transition-shadow cursor-pointer">
+                        <div className="flex items-center gap-3 mb-3">
+                            <MessageCircle className="h-8 w-8 text-blue-600" />
+                            <div>
+                                <h3 className="font-semibold">تحلیل بازخوردها</h3>
+                                <p className="text-sm text-muted-foreground">تحلیل هوشمند بازخوردهای مشتریان</p>
+                            </div>
+                        </div>
+                        <Badge variant="secondary">هوش مصنوعی</Badge>
+                    </Card>
+                </Link>
+
+                <Link href="/dashboard/insights/sales-analysis">
+                    <Card className="p-6 hover:shadow-md transition-shadow cursor-pointer">
+                        <div className="flex items-center gap-3 mb-3">
+                            <TrendingUp className="h-8 w-8 text-green-600" />
+                            <div>
+                                <h3 className="font-semibold">تحلیل فروش</h3>
+                                <p className="text-sm text-muted-foreground">تحلیل عملکرد و روندهای فروش</p>
+                            </div>
+                        </div>
+                        <Badge variant="secondary">هوش مصنوعی</Badge>
+                    </Card>
+                </Link>
+
+                <Link href="/dashboard/insights/reports-analysis">
+                    <Card className="p-6 hover:shadow-md transition-shadow cursor-pointer">
+                        <div className="flex items-center gap-3 mb-3">
+                            <BarChart3 className="h-8 w-8 text-purple-600" />
+                            <div>
+                                <h3 className="font-semibold">تحلیل گزارشات</h3>
+                                <p className="text-sm text-muted-foreground">تحلیل گزارشات روزانه</p>
+                            </div>
+                        </div>
+                        <Badge variant="secondary">هوش مصنوعی</Badge>
+                    </Card>
+                </Link>
             </div>
 
             {/* Insights List */}

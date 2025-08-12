@@ -31,6 +31,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
 
 interface Contact {
     id: string;
@@ -106,6 +113,8 @@ export default function CustomerClubPage() {
     });
     const [bulkEmails, setBulkEmails] = useState<BulkEmail[]>([{ to: '', subject: '', variables: {} }]);
     const [emailResult, setEmailResult] = useState<any>(null);
+    const [previewHtml, setPreviewHtml] = useState<string>('');
+    const [showPreview, setShowPreview] = useState(false);
 
     const { toast } = useToast();
 
@@ -175,6 +184,37 @@ export default function CustomerClubPage() {
             }
         } catch (error) {
             console.error('Error fetching templates:', error);
+            // Add some default templates for demo
+            setTemplates({
+                'welcome': {
+                    name: 'خوش‌آمدگویی',
+                    subject: 'به خانواده رابین تجارت خوش آمدید',
+                    template: `سلام {name} عزیز،
+
+از اینکه به خانواده بزرگ {company} پیوستید، بسیار خوشحالیم.
+
+ما در رابین تجارت خاورمیانه همواره در تلاش برای ارائه بهترین خدمات هستیم.
+
+با تشکر،
+تیم رابین تجارت`,
+                    variables: ['name', 'company']
+                },
+                'newsletter': {
+                    name: 'خبرنامه',
+                    subject: 'آخرین اخبار و به‌روزرسانی‌ها',
+                    template: `سلام {name} عزیز،
+
+امیدواریم حال شما خوب باشد.
+
+در این خبرنامه، آخرین اخبار و به‌روزرسانی‌های شرکت {company} را برای شما آماده کرده‌ایم.
+
+برای اطلاعات بیشتر با ما در تماس باشید: {email}
+
+با احترام،
+تیم رابین تجارت خاورمیانه`,
+                    variables: ['name', 'company', 'email']
+                }
+            });
         }
     };
 
@@ -244,6 +284,7 @@ export default function CustomerClubPage() {
             const emails = selectedContactsData.map(contact => ({
                 to: contact.email,
                 subject: emailData.subject,
+                message: emailData.message, // اضافه کردن متن پیام
                 variables: {
                     ...emailData.variables,
                     customerName: contact.name,
@@ -332,6 +373,39 @@ export default function CustomerClubPage() {
             });
         } finally {
             setSending(false);
+        }
+    };
+
+    const handlePreview = async () => {
+        try {
+            const response = await fetch('/api/email/preview', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    content: emailData.message,
+                    subject: emailData.subject
+                }),
+            });
+
+            const data = await response.json();
+            if (data.success) {
+                setPreviewHtml(data.html);
+                setShowPreview(true);
+            } else {
+                toast({
+                    title: "خطا",
+                    description: "خطا در تولید پیش‌نمایش",
+                    variant: "destructive"
+                });
+            }
+        } catch (error) {
+            toast({
+                title: "خطا",
+                description: "خطا در تولید پیش‌نمایش",
+                variant: "destructive"
+            });
         }
     };
 
@@ -570,13 +644,23 @@ export default function CustomerClubPage() {
                                     </div>
                                 )}
 
-                                <Button
-                                    onClick={handleSendSingleEmail}
-                                    disabled={sending || !emailData.to || !emailData.subject}
-                                    className="w-full"
-                                >
-                                    {sending ? 'در حال ارسال...' : 'ارسال ایمیل'}
-                                </Button>
+                                <div className="flex gap-2">
+                                    <Button
+                                        onClick={handlePreview}
+                                        variant="outline"
+                                        className="flex-1"
+                                        disabled={!emailData.message || !emailData.subject}
+                                    >
+                                        پیش‌نمایش
+                                    </Button>
+                                    <Button
+                                        onClick={handleSendSingleEmail}
+                                        disabled={sending || !emailData.to || !emailData.subject || !emailData.message}
+                                        className="flex-2"
+                                    >
+                                        {sending ? 'در حال ارسال...' : 'ارسال ایمیل'}
+                                    </Button>
+                                </div>
                             </div>
                         </CardContent>
                     </Card>
@@ -636,6 +720,7 @@ export default function CustomerClubPage() {
                                     rows={8}
                                     placeholder="متن ایمیل..."
                                 />
+
                             </div>
 
                             {/* Variables for template */}
@@ -668,13 +753,39 @@ export default function CustomerClubPage() {
                                 </div>
                             )}
 
-                            <Button
-                                onClick={handleSendToSelected}
-                                disabled={sending || selectedContacts.length === 0 || !emailData.subject}
-                                className="w-full"
-                            >
-                                {sending ? 'در حال ارسال...' : `ارسال به ${selectedContacts.length} مخاطب`}
-                            </Button>
+                            <div className="flex gap-2">
+                                <Dialog open={showPreview} onOpenChange={setShowPreview}>
+                                    <DialogTrigger asChild>
+                                        <Button
+                                            onClick={handlePreview}
+                                            variant="outline"
+                                            className="flex-1"
+                                            disabled={!emailData.message || !emailData.subject}
+                                        >
+                                            پیش‌نمایش
+                                        </Button>
+                                    </DialogTrigger>
+                                    <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+                                        <DialogHeader>
+                                            <DialogTitle>پیش‌نمایش ایمیل</DialogTitle>
+                                        </DialogHeader>
+                                        <div className="border rounded-lg overflow-hidden">
+                                            <iframe
+                                                srcDoc={previewHtml}
+                                                className="w-full h-96 border-0"
+                                                title="پیش‌نمایش ایمیل"
+                                            />
+                                        </div>
+                                    </DialogContent>
+                                </Dialog>
+                                <Button
+                                    onClick={handleSendToSelected}
+                                    disabled={sending || selectedContacts.length === 0 || !emailData.subject || !emailData.message}
+                                    className="flex-2"
+                                >
+                                    {sending ? 'در حال ارسال...' : `ارسال به ${selectedContacts.length} مخاطب`}
+                                </Button>
+                            </div>
                         </CardContent>
                     </Card>
                 </TabsContent>

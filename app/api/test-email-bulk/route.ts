@@ -49,11 +49,14 @@ export async function POST(request: NextRequest) {
                         { ...variables, ...email.variables }
                     );
                 } else {
-                    // Send simple email
+                    // Send simple email with HTML template
+                    const { generateEmailTemplate } = require('../../../lib/email-template-helper.js');
+                    const htmlContent = generateEmailTemplate(email.message || 'پیام خالی', email.subject);
+
                     result = await gmailService.sendEmail({
                         to: email.to,
                         subject: email.subject,
-                        html: email.message || template
+                        html: htmlContent
                     });
                 }
 
