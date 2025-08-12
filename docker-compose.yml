@@ -38,7 +38,7 @@ services:
       - DATABASE_URL=mysql://root:1234@mysql:3306/crm_system
       - DATABASE_HOST=mysql
       - NODE_ENV=production
-      - NODE_OPTIONS=--max-old-space-size=4096
+      - NODE_OPTIONS=--max-old-space-size=1024
     # Use bind mounts only for development, not needed for production
     # volumes:
     #   - .:/app
@@ -54,9 +54,9 @@ services:
     deploy:
       resources:
         limits:
-          memory: 4G
+          memory: 1.5G
         reservations:
-          memory: 2G
+          memory: 512M
     # Add healthcheck for nextjs
     healthcheck:
       test: ["CMD", "wget", "-q", "--spider", "http://localhost:3000/api/health"]

@@ -10,8 +10,8 @@ RUN apk add --no-cache libc6-compat
 # Copy package files
 COPY package.json package-lock.json* ./
 
-# Install dependencies with clean cache
-RUN npm ci --only=production && npm cache clean --force
+# Install dependencies with clean cache and reduced memory usage
+RUN npm ci --only=production --no-audit --no-fund && npm cache clean --force
 
 # Rebuild the source code only when needed
 FROM base AS builder
@@ -24,7 +24,7 @@ COPY . .
 # Set environment variables for optimized build
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_OPTIONS="--max-old-space-size=4096"
+ENV NODE_OPTIONS="--max-old-space-size=1024"
 
 # Force cache invalidation for better builds
 RUN echo "Build timestamp: $(date)" > /tmp/build-time
