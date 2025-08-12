@@ -53,7 +53,7 @@ export async function GET() {
           SUM(total_amount) as revenue
         FROM sales 
         WHERE sale_date >= DATE_SUB(CURDATE(), INTERVAL 6 MONTH)
-        GROUP BY YEAR(sale_date), MONTH(sale_date), MONTHNAME(sale_date)
+        GROUP BY DATE_FORMAT(sale_date, '%Y-%m'), YEAR(sale_date), MONTH(sale_date), MONTHNAME(sale_date)
         ORDER BY YEAR(sale_date), MONTH(sale_date)
       `);
 
