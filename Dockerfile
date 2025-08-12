@@ -26,6 +26,9 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
+# Force cache invalidation for better builds
+RUN echo "Build timestamp: $(date)" > /tmp/build-time
+
 # Build the application in standalone mode for better performance
 RUN npm run build
 
