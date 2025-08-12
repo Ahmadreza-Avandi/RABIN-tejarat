@@ -4,13 +4,13 @@ export async function GET() {
     try {
         // Simple health check
         return NextResponse.json({
-            status: 'ok',
+            status: 'healthy',
             timestamp: new Date().toISOString(),
-            service: 'CRM System'
+            uptime: process.uptime()
         });
     } catch (error) {
         return NextResponse.json(
-            { status: 'error', message: 'Service unavailable' },
+            { status: 'unhealthy', error: 'Health check failed' },
             { status: 500 }
         );
     }
