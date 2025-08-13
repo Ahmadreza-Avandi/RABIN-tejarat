@@ -1,44 +1,49 @@
-FROM node:18-alpine
+# Multi-stage build for better optimization
+FROM node:18-alpine AS base
 
+# Install dependencies only when needed
+FROM base AS deps
+RUN apk add --no-cache libc6-compat git curl
 WORKDIR /app
-
-# Install curl for health check
-RUN apk add --no-cache curl
 
 # Copy package files
 COPY package*.json ./
-
-# Install all dependencies (including dev dependencies for build)
 RUN npm ci
 
-# Copy source code
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build the application with increased memory limit
+# Set memory limit and build
 ENV NODE_OPTIONS="--max-old-space-size=2048"
+ENV NODE_ENV=production
 RUN npm run build
 
-# Remove dev dependencies after build
-RUN npm prune --production
+# Production image, copy all the files and run next
+FROM base AS runner
+WORKDIR /app
 
-# Create non-root user for security
-RUN addgroup -g 1001 -S nodejs
-RUN adduser -S nextjs -u 1001
+ENV NODE_ENV=production
 
-# Change ownership of the app directory
-RUN chown -R nextjs:nodejs /app
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copy built application
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 USER nextjs
 
-# Expose port
 EXPOSE 3000
 
-# Set environment to production
-ENV NODE_ENV=production
+ENV PORT=3000
+ENV HOSTNAME="0.0.0.0"
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
     CMD curl -f http://localhost:3000/api/health || exit 1
 
-# Start the application
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
