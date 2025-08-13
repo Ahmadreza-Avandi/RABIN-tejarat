@@ -1,0 +1,40 @@
+services:
+  mysql:
+    image: mariadb:10.5
+    container_name: crm-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: crm_system
+      MYSQL_USER: crm_user
+      MYSQL_PASSWORD: 1234
+    ports:
+      - "3307:3306"  # پورت خارجی 3307 تا تداخل نداشته باشه
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./crm_system.sql:/docker-entrypoint-initdb.d/crm_system.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p1234"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: crm-phpmyadmin
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: 1234
+      MYSQL_ROOT_PASSWORD: 1234
+    ports:
+      - "8080:80"
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: always
+
+volumes:
+  mysql_data:
+    driver: local

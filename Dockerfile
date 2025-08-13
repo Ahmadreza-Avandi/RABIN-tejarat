@@ -5,15 +5,20 @@ WORKDIR /app
 # Install curl for health check
 RUN apk add --no-cache curl
 
-# Install dependencies
+# Copy package files
 COPY package*.json ./
-RUN npm ci --only=production
+
+# Install all dependencies (including dev dependencies for build)
+RUN npm ci
 
 # Copy source code
 COPY . .
 
 # Build the application
 RUN npm run build
+
+# Remove dev dependencies after build
+RUN npm prune --production
 
 # Create non-root user for security
 RUN addgroup -g 1001 -S nodejs
