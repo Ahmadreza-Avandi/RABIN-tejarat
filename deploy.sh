@@ -1,35 +1,23 @@
 #!/bin/bash
 
-echo "🚀 Deploying CRM System with Docker..."
+echo "🚀 شروع deploy پروژه CRM..."
 
-# Stop existing containers
-echo "📦 Stopping existing containers..."
-docker-compose down
+# متوقف کردن کانتینرهای قبلی
+echo "⏹️ متوقف کردن کانتینرهای قبلی..."
+docker-compose -f docker-compose.simple.yml down
 
-# Remove old images
-echo "🧹 Cleaning up old images..."
+# پاک کردن images قدیمی
+echo "🧹 پاک کردن images قدیمی..."
 docker system prune -f
 
-# Build and start services
-echo "🏗️ Building and starting services..."
-docker-compose up -d --build
+# Build و اجرای کانتینرها
+echo "🔨 Build و اجرای کانتینرها..."
+docker-compose -f docker-compose.simple.yml up -d --build
 
-# Wait for services to be ready
-echo "⏳ Waiting for services to start..."
-sleep 30
+# نمایش وضعیت
+echo "📊 وضعیت کانتینرها:"
+docker-compose -f docker-compose.simple.yml ps
 
-# Check service status
-echo "🔍 Checking service status..."
-docker-compose ps
-
-# Test health endpoint
-echo "🏥 Testing health endpoint..."
-curl -f http://localhost:3000/api/health || echo "⚠️  Health check failed"
-
-echo "✅ Deployment completed!"
-echo "🌐 Your application should be available at:"
-echo "- https://ahmadreza-avandi.ir"
-echo "- https://www.ahmadreza-avandi.ir"
-echo ""
-echo "📋 Recent logs:"
-docker-compose logs --tail=50
+echo "✅ Deploy کامل شد!"
+echo "🌐 سایت در دسترس است: http://your-domain.com"
+echo "📊 MySQL در دسترس است: localhost:3306"
