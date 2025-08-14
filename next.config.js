@@ -4,26 +4,50 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   typescript: {
-    ignoreBuildErrors: true, // سرعت بخشیدن به build
+    ignoreBuildErrors: true,
   },
   images: {
     unoptimized: true
   },
   // بهینه‌سازی برای کاهش حجم
   experimental: {
-    optimizeCss: false,
-    optimizePackageImports: ['lucide-react', '@radix-ui/react-icons'],
+    optimizePackageImports: [
+      'lucide-react',
+      '@radix-ui/react-icons',
+      'recharts',
+      'date-fns'
+    ],
   },
-  // کاهش استفاده از رم در build
+  // SWC minification
   swcMinify: true,
-  // حذف source maps برای کاهش حجم
+  // حذف source maps در production
   productionBrowserSourceMaps: false,
-  // تنظیمات برای production
+  // تنظیمات performance
   poweredByHeader: false,
   reactStrictMode: false,
   // کاهش حجم bundle
   compiler: {
     removeConsole: process.env.NODE_ENV === 'production',
+  },
+  // Webpack optimizations
+  webpack: (config, { dev, isServer }) => {
+    if (!dev && !isServer) {
+      // Tree shaking بهتر
+      config.optimization.usedExports = true;
+
+      // Code splitting بهتر
+      config.optimization.splitChunks = {
+        chunks: 'all',
+        cacheGroups: {
+          vendor: {
+            test: /[\\/]node_modules[\\/]/,
+            name: 'vendors',
+            chunks: 'all',
+          },
+        },
+      };
+    }
+    return config;
   },
 };
 

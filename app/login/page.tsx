@@ -3,7 +3,6 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -11,8 +10,8 @@ import { Label } from '@/components/ui/label';
 
 export default function LoginPage() {
     const router = useRouter();
-    const [email, setEmail] = useState(''); // Default CEO email for testing
-    const [password, setPassword] = useState(''); // Default password for testing
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
     const [error, setError] = useState('');
     const [isLoggingIn, setIsLoggingIn] = useState(false);
 
@@ -20,8 +19,8 @@ export default function LoginPage() {
 
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault();
-        setIsLoggingIn(true);
         setError('');
+        setIsLoggingIn(true);
 
         try {
             const response = await fetch('/api/auth/login', {
@@ -35,15 +34,11 @@ export default function LoginPage() {
             const data = await response.json();
 
             if (data.success) {
-                // Store user data and token in localStorage
-                localStorage.setItem('currentUser', JSON.stringify(data.user));
-                localStorage.setItem('auth-token', data.token);
-                // Cookie is already set by the API
-                // Add some delay for animation
-                await new Promise(resolve => setTimeout(resolve, 600));
+                // Set cookie and redirect
+                document.cookie = `auth-token=${data.token}; path=/; max-age=86400; SameSite=Strict`;
                 router.push('/dashboard');
             } else {
-                setError(data.message || 'خطا در ورود');
+                setError(data.message || 'خطا در ورود به سیستم');
             }
         } catch (error) {
             console.error('Login error:', error);
@@ -56,22 +51,8 @@ export default function LoginPage() {
     return (
         <div className="min-h-screen flex flex-col items-center justify-center bg-gradient-to-br from-primary/5 via-secondary/5 to-accent/5">
             <div className="w-full max-w-[400px] px-4">
-                <motion.div
-                    className="mb-8 text-center"
-                    initial={{ opacity: 0, y: -20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.5 }}
-                >
-                    <motion.div
-                        className="w-[180px] h-[180px] mx-auto mb-4 relative"
-                        initial={{ scale: 0 }}
-                        animate={{ scale: 1 }}
-                        transition={{
-                            type: "spring",
-                            stiffness: 260,
-                            damping: 20
-                        }}
-                    >
+                <div className="mb-8 text-center">
+                    <div className="w-[180px] h-[180px] mx-auto mb-4 relative">
                         <Image
                             src="https://uploadkon.ir/uploads/5c1f19_25x-removebg-preview.png"
                             alt="رابین تجارت"
@@ -79,45 +60,20 @@ export default function LoginPage() {
                             className="object-contain"
                             priority
                         />
-                    </motion.div>
-                    <motion.h1
-                        className="text-3xl font-bold font-vazir bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.3 }}
-                    >
+                    </div>
+                    <h1 className="text-3xl font-bold font-vazir bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
                         رابین تجارت
-                    </motion.h1>
-                    <motion.p
-                        className="text-muted-foreground mt-2 font-vazir"
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        transition={{ delay: 0.4 }}
-                    >
+                    </h1>
+                    <p className="text-muted-foreground mt-2 font-vazir">
                         شرکت رابین تجارت خاورمیانه
-                    </motion.p>
-                </motion.div>
+                    </p>
+                </div>
 
-                <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: 0.5, duration: 0.5 }}
-                >
+                <div>
                     <Card className="border-border/50 backdrop-blur-sm bg-background/95">
                         <CardContent className="pt-6">
-                            <motion.form
-                                onSubmit={handleLogin}
-                                className="space-y-4"
-                                initial={{ opacity: 0 }}
-                                animate={{ opacity: 1 }}
-                                transition={{ delay: 0.6 }}
-                            >
-                                <motion.div
-                                    className="space-y-2"
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: 0.7 }}
-                                >
+                            <form onSubmit={handleLogin} className="space-y-4">
+                                <div className="space-y-2">
                                     <Label htmlFor="email" className="font-vazir">ایمیل</Label>
                                     <Input
                                         id="email"
@@ -125,17 +81,12 @@ export default function LoginPage() {
                                         value={email}
                                         onChange={(e) => setEmail(e.target.value)}
                                         placeholder="ایمیل خود را وارد کنید"
-                                        className="font-vazir"
                                         required
+                                        className="font-vazir"
                                         dir="rtl"
                                     />
-                                </motion.div>
-                                <motion.div
-                                    className="space-y-2"
-                                    initial={{ opacity: 0, x: -20 }}
-                                    animate={{ opacity: 1, x: 0 }}
-                                    transition={{ delay: 0.8 }}
-                                >
+                                </div>
+                                <div className="space-y-2">
                                     <Label htmlFor="password" className="font-vazir">رمز عبور</Label>
                                     <Input
                                         id="password"
@@ -143,51 +94,36 @@ export default function LoginPage() {
                                         value={password}
                                         onChange={(e) => setPassword(e.target.value)}
                                         placeholder="رمز عبور خود را وارد کنید"
-                                        className="font-vazir"
                                         required
+                                        className="font-vazir"
                                         dir="rtl"
                                     />
-                                </motion.div>
+                                </div>
+
                                 {error && (
-                                    <motion.p
-                                        className="text-red-500 text-sm text-center font-vazir"
-                                        initial={{ opacity: 0, scale: 0.8 }}
-                                        animate={{ opacity: 1, scale: 1 }}
-                                        transition={{ type: "spring" }}
-                                    >
+                                    <p className="text-red-500 text-sm text-center font-vazir">
                                         {error}
-                                    </motion.p>
+                                    </p>
                                 )}
 
-                                {/* Development hint */}
-
-
-                                <motion.div
-                                    whileHover={{ scale: 1.02 }}
-                                    whileTap={{ scale: 0.98 }}
-                                >
+                                <div>
                                     <Button
                                         type="submit"
-                                        className="w-full font-vazir bg-gradient-to-r from-primary via-secondary to-accent hover:from-primary/90 hover:via-secondary/90 hover:to-accent/90"
+                                        className="w-full font-vazir"
                                         disabled={isLoggingIn}
                                     >
                                         {isLoggingIn ? 'در حال ورود...' : 'ورود به سیستم'}
                                     </Button>
-                                </motion.div>
-                            </motion.form>
+                                </div>
+                            </form>
                         </CardContent>
                     </Card>
-                </motion.div>
+                </div>
 
-                <motion.p
-                    className="text-center text-sm text-muted-foreground mt-4 font-vazir"
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 1 }}
-                >
+                <p className="text-center text-sm text-muted-foreground mt-4 font-vazir">
                     توسعه داده شده توسط رابین تجارت &copy; {currentYear}
-                </motion.p>
+                </p>
             </div>
-        </div >
+        </div>
     );
 }

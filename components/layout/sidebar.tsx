@@ -552,7 +552,7 @@ export const ResponsiveSidebar = () => {
       {/* Sidebar */}
       <div
         className={cn(
-          'fixed left-0 top-0 z-50 h-screen bg-card/95 backdrop-blur-xl border-r border-border/50 transition-all duration-300 shadow-2xl flex flex-col',
+          'fixed right-0 top-0 z-50 h-screen bg-card/95 backdrop-blur-xl border-l border-border/50 transition-all duration-300 shadow-2xl flex flex-col',
           sidebarCollapsed && !isHovered ? 'w-16' : 'w-72'
         )}
         onMouseEnter={handleMouseEnter}

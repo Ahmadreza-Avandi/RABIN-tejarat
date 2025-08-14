@@ -1,42 +1,42 @@
-FROM node:18-alpine
-
+# مرحله 1: Base image
+FROM node:18-alpine AS base
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# با 4GB swap می‌تونیم memory بیشتری استفاده کنیم
-ENV NODE_OPTIONS="--max-old-space-size=2500"
-
-# کپی فایل‌های package
+# مرحله 2: Dependencies
+FROM base AS deps
 COPY package*.json ./
+RUN npm ci --only=production --prefer-offline --no-audit --progress=false
 
-# نصب dependencies و پاک کردن کش
-RUN npm ci --prefer-offline --no-audit --progress=false && \
-    npm cache clean --force
+# مرحله 3: Builder
+FROM base AS builder
+COPY package*.json ./
+RUN npm ci --prefer-offline --no-audit --progress=false
 
-# کپی تنظیمات
-COPY tsconfig.json ./
-COPY next.config.js ./
-COPY tailwind.config.ts ./
-COPY postcss.config.js ./
+# کپی فایل‌های ضروری
+COPY . .
+
+# Build با memory محدود
+ENV NODE_OPTIONS="--max-old-space-size=1500"
+RUN npm run build
+
+# مرحله 4: Runner
+FROM base AS runner
+ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-old-space-size=512"
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
 
 # کپی فقط فایل‌های ضروری
-COPY app ./app
-COPY components ./components
-COPY lib ./lib
-COPY public ./public
-COPY hooks ./hooks
-COPY types ./types
-COPY middleware.ts ./
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Build پروژه
-RUN npm run build && \
-    rm -rf node_modules && \
-    npm ci --only=production --prefer-offline --no-audit --progress=false && \
-    npm cache clean --force
-
-# کاهش memory برای runtime
-ENV NODE_OPTIONS="--max-old-space-size=400"
-ENV NODE_ENV=production
+USER nextjs
 
 EXPOSE 3000
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
 
-CMD ["npm", "start"]
+CMD ["node", "server.js"]

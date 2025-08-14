@@ -1,6 +1,6 @@
 'use client';
 
-import { ResponsiveLayout } from '@/components/layout/responsive-layout';
+import { SimpleLayout } from '@/components/layout/simple-layout';
 
 export default function DashboardLayout({
   children,
@@ -8,10 +8,8 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }) {
   return (
-    <ResponsiveLayout>
-      <main className="flex-1 p-4 overflow-auto">
-        {children}
-      </main>
-    </ResponsiveLayout>
+    <SimpleLayout>
+      {children}
+    </SimpleLayout>
   );
 }
