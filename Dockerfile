@@ -15,13 +15,17 @@ RUN npm ci --prefer-offline --no-audit --progress=false && \
 # کپی تنظیمات
 COPY tsconfig.json ./
 COPY next.config.js ./
+COPY tailwind.config.ts ./
+COPY postcss.config.js ./
 
 # کپی فقط فایل‌های ضروری
 COPY app ./app
 COPY components ./components
 COPY lib ./lib
 COPY public ./public
-COPY styles ./styles
+COPY hooks ./hooks
+COPY types ./types
+COPY middleware.ts ./
 
 # Build پروژه
 RUN npm run build && \
