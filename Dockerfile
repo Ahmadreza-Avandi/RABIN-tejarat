@@ -13,7 +13,7 @@ FROM base AS builder
 COPY package*.json ./
 RUN npm ci --prefer-offline --no-audit --progress=false
 
-# کپی فایل‌های ضروری
+# کپی کل پروژه
 COPY . .
 
 # Build با memory محدود
@@ -28,8 +28,10 @@ ENV NODE_OPTIONS="--max-old-space-size=512"
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# کپی فقط فایل‌های ضروری
+# کپی فایل‌های public
 COPY --from=builder /app/public ./public
+
+# کپی standalone build
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
