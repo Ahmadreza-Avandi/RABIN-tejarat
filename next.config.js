@@ -6,6 +6,8 @@ const nextConfig = {
   images: {
     unoptimized: true
   },
+  // تنظیمات برای standalone output
+  output: 'standalone',
   // بهینه‌سازی برای سرور ضعیف
   experimental: {
     optimizeCss: true,

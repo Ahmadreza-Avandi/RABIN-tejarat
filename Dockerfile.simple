@@ -1,0 +1,23 @@
+# راه حل ساده - استفاده از pre-built image
+FROM node:18-alpine
+
+WORKDIR /app
+
+# تنظیمات production
+ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-old-space-size=512"
+
+# کپی فایل‌های package
+COPY package*.json ./
+
+# نصب فقط production dependencies
+RUN npm ci --only=production && npm cache clean --force
+
+# کپی فایل‌های build شده (باید از قبل build شده باشه)
+COPY .next ./.next
+COPY public ./public
+COPY next.config.js ./
+
+EXPOSE 3000
+
+CMD ["npm", "start"]
