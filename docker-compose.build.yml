@@ -1,0 +1,102 @@
+services:
+  mysql:
+    image: mariadb:10.5
+    container_name: mysql-db
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: crm_system
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./crm_system.sql:/docker-entrypoint-initdb.d/crm_system.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p1234"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 400M
+        reservations:
+          memory: 200M
+
+  nextjs:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nextjs-app
+    environment:
+      - DATABASE_URL=mysql://root:1234@mysql:3306/crm_system
+      - DATABASE_HOST=mysql
+      - NODE_ENV=production
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      mysql:
+        condition: service_healthy
+    restart: always
+    networks:
+      - app-network
+    # افزایش memory برای build
+    deploy:
+      resources:
+        limits:
+          memory: 1400M
+        reservations:
+          memory: 1000M
+
+  nginx:
+    image: nginx:alpine
+    container_name: nginx-proxy
+    restart: always
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
+      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - /etc/ssl:/etc/ssl:ro
+    depends_on:
+      - nextjs
+      - phpmyadmin
+    networks:
+      - app-network
+    deploy:
+      resources:
+        limits:
+          memory: 100M
+        reservations:
+          memory: 50M
+
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    container_name: phpmyadmin
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      MYSQL_ROOT_PASSWORD: 1234
+      PMA_ARBITRARY: 1
+    depends_on:
+      mysql:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: always
+    deploy:
+      resources:
+        limits:
+          memory: 200M
+        reservations:
+          memory: 100M
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  mysql_data: {}

@@ -1,51 +1,38 @@
-# Build stage
-FROM node:18-alpine AS builder
+FROM node:18-alpine
 
 WORKDIR /app
 
-# افزایش memory برای build
-ENV NODE_OPTIONS="--max-old-space-size=1536"
+# با 4GB swap می‌تونیم memory بیشتری استفاده کنیم
+ENV NODE_OPTIONS="--max-old-space-size=2500"
 
 # کپی فایل‌های package
 COPY package*.json ./
 
-# نصب dependencies
-RUN npm ci
+# نصب dependencies و پاک کردن کش
+RUN npm ci --prefer-offline --no-audit --progress=false && \
+    npm cache clean --force
 
 # کپی تنظیمات
 COPY tsconfig.json ./
 COPY next.config.js ./
 
-# کپی کل پروژه
-COPY . .
+# کپی فقط فایل‌های ضروری
+COPY app ./app
+COPY components ./components
+COPY lib ./lib
+COPY public ./public
+COPY styles ./styles
 
 # Build پروژه
-RUN npm run build
+RUN npm run build && \
+    rm -rf node_modules && \
+    npm ci --only=production --prefer-offline --no-audit --progress=false && \
+    npm cache clean --force
 
-# Production stage
-FROM node:18-alpine AS runner
-
-WORKDIR /app
-
-# تنظیمات production
+# کاهش memory برای runtime
+ENV NODE_OPTIONS="--max-old-space-size=400"
 ENV NODE_ENV=production
-ENV NODE_OPTIONS="--max-old-space-size=512"
-
-# ایجاد کاربر غیر root
-RUN addgroup --system --gid 1001 nodejs
-RUN adduser --system --uid 1001 nextjs
-
-# کپی فایل‌های مورد نیاز از build stage
-COPY --from=builder /app/public ./public
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-
-# تنظیم مالکیت فایل‌ها
-USER nextjs
 
 EXPOSE 3000
 
-ENV PORT=3000
-ENV HOSTNAME="0.0.0.0"
-
-CMD ["node", "server.js"]
+CMD ["npm", "start"]
