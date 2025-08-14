@@ -1,0 +1,47 @@
+# مرحله 1: Base image
+FROM node:18-alpine AS base
+RUN apk add --no-cache libc6-compat
+WORKDIR /app
+
+# مرحله 2: Dependencies
+FROM base AS deps
+COPY package*.json ./
+RUN npm ci --only=production --prefer-offline --no-audit --progress=false
+
+# مرحله 3: Builder
+FROM base AS builder
+COPY package*.json ./
+RUN npm ci --prefer-offline --no-audit --progress=false
+
+# کپی فقط فایل‌های ضروری
+COPY . .
+# حذف فایل‌های غیرضروری قبل از build
+RUN rm -rf app/dashboard/cem-settings app/dashboard/customer-health app/dashboard/daily-reports app/dashboard/emotions app/dashboard/responsive-test app/dashboard/touchpoints app/dashboard/voice-of-customer
+RUN rm -rf app/debug-users app/email-preview app/email-test app/test-*
+RUN rm -rf app/api/test-* app/api/debug app/api/health app/api/interactions app/api/tickets
+RUN rm -f *test*.js verify-system.js database-backup-tables.sql import-sample-data.sql
+
+# Build با memory محدود
+ENV NODE_OPTIONS="--max-old-space-size=2048"
+RUN npm run build
+
+# مرحله 4: Runner
+FROM base AS runner
+ENV NODE_ENV=production
+ENV NODE_OPTIONS="--max-old-space-size=512"
+
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# کپی فقط فایل‌های ضروری
+COPY --from=builder /app/public ./public
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
+
+EXPOSE 3000
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
+
+CMD ["node", "server.js"]
