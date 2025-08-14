@@ -1,38 +1,26 @@
 #!/bin/bash
 
-echo "🔧 Setting up swap for better build performance..."
+# اسکریپت تنظیم swap برای سرور ضعیف
+echo "تنظیم swap برای بهینه‌سازی سرور..."
 
-# Check if swap already exists
-if [ $(swapon --show | wc -l) -gt 0 ]; then
-    echo "✅ Swap already exists"
-    swapon --show
+# بررسی وجود swap
+if swapon --show | grep -q "/swapfile"; then
+    echo "Swap قبلاً تنظیم شده است"
     exit 0
 fi
 
-# Create 2GB swap file
-echo "📁 Creating 2GB swap file..."
+# ایجاد فایل swap 2GB
 sudo fallocate -l 2G /swapfile
-
-# Set correct permissions
-echo "🔒 Setting permissions..."
 sudo chmod 600 /swapfile
-
-# Make swap
-echo "⚙️  Making swap..."
 sudo mkswap /swapfile
-
-# Enable swap
-echo "🔄 Enabling swap..."
 sudo swapon /swapfile
 
-# Make it permanent
-echo "💾 Making swap permanent..."
+# اضافه کردن به fstab برای دائمی شدن
 echo '/swapfile none swap sw 0 0' | sudo tee -a /etc/fstab
 
-# Optimize swappiness for build performance
-echo "⚡ Optimizing swappiness..."
+# تنظیم swappiness برای بهینه‌سازی
 echo 'vm.swappiness=10' | sudo tee -a /etc/sysctl.conf
 
-echo "✅ Swap setup completed!"
-echo "📊 Current memory status:"
+echo "✅ Swap با موفقیت تنظیم شد"
+echo "📊 وضعیت فعلی:"
 free -h

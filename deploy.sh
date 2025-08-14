@@ -1,32 +1,23 @@
 #!/bin/bash
 
-echo "🚀 شروع deploy پروژه CRM..."
+echo "🚀 شروع دیپلوی پروژه..."
 
-# متوقف کردن کانتینرهای قبلی
-echo "⏹️ متوقف کردن کانتینرهای قبلی..."
-docker-compose -f docker-compose.simple.yml down
+# توقف کانتینرهای قبلی
+echo "⏹️ توقف کانتینرهای قبلی..."
+docker-compose down
 
-# پاک کردن images قدیمی
-echo "🧹 پاک کردن images قدیمی..."
+# پاک کردن تصاویر قدیمی
+echo "🧹 پاک کردن تصاویر قدیمی..."
 docker system prune -f
 
-# Build و اجرای کانتینرها
-echo "🔨 Build و اجرای کانتینرها..."
-docker-compose -f docker-compose.simple.yml up -d --build
-
-# انتظار برای آماده شدن سرویس‌ها
-echo "⏳ انتظار برای آماده شدن سرویس‌ها..."
-sleep 30
+# ساخت و اجرای کانتینرها
+echo "🔨 ساخت و اجرای کانتینرها..."
+docker-compose up -d --build
 
 # نمایش وضعیت
 echo "📊 وضعیت کانتینرها:"
-docker-compose -f docker-compose.simple.yml ps
+docker-compose ps
 
-echo ""
-echo "✅ Deploy کامل شد!"
-echo "🌐 Next.js سایت: http://localhost:3000"
-echo "📊 MySQL: localhost:3306"
-echo "📊 phpMyAdmin: http://localhost:8080"
-echo ""
-echo "📋 برای مشاهده لاگ‌ها:"
-echo "docker-compose -f docker-compose.simple.yml logs -f app"
+echo "✅ دیپلوی با موفقیت انجام شد!"
+echo "🌐 سایت: https://ahmadreza-avandi.ir"
+echo "🗄️ phpMyAdmin: https://ahmadreza-avandi.ir/phpmyadmin/"
