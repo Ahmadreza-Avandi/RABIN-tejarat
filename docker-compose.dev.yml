@@ -1,0 +1,83 @@
+version: '3.8'
+
+services:
+  # Next.js Development
+  nextjs-dev:
+    build: 
+      context: .
+      target: base
+    container_name: crm-nextjs-dev
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env.local
+    environment:
+      - NODE_ENV=development
+      - DATABASE_HOST=mysql-dev
+      - DATABASE_USER=root
+      - DATABASE_PASSWORD=1234
+      - DATABASE_NAME=crm_system
+      - DATABASE_URL=mysql://root:1234@mysql-dev:3306/crm_system
+    volumes:
+      - .:/app
+      - /app/node_modules
+      - /app/.next
+    restart: unless-stopped
+    depends_on:
+      mysql-dev:
+        condition: service_healthy
+    networks:
+      - crm-dev-network
+    command: npm run dev
+
+  # MySQL Development
+  mysql-dev:
+    image: mysql:8.0
+    container_name: crm-mysql-dev
+    environment:
+      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_DATABASE: crm_system
+      MYSQL_USER: crm_user
+      MYSQL_PASSWORD: 1234
+    ports:
+      - "3307:3306"
+    volumes:
+      - mysql_dev_data:/var/lib/mysql
+      - ./database:/docker-entrypoint-initdb.d
+    restart: unless-stopped
+    command: --default-authentication-plugin=mysql_native_password --innodb-buffer-pool-size=256M
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p1234"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - crm-dev-network
+
+  # phpMyAdmin Development
+  phpmyadmin-dev:
+    image: phpmyadmin/phpmyadmin:latest
+    container_name: crm-phpmyadmin-dev
+    environment:
+      PMA_HOST: mysql-dev
+      PMA_PORT: 3306
+      PMA_USER: root
+      PMA_PASSWORD: 1234
+      MYSQL_ROOT_PASSWORD: 1234
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    depends_on:
+      mysql-dev:
+        condition: service_healthy
+    networks:
+      - crm-dev-network
+
+volumes:
+  mysql_dev_data:
+    driver: local
+
+networks:
+  crm-dev-network:
+    driver: bridge
