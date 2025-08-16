@@ -8,12 +8,14 @@ services:
     env_file:
       - .env
     environment:
-      - NODE_ENV=production
-      - DATABASE_HOST=mysql
-      - DATABASE_USER=crm_app_user
-      - DATABASE_PASSWORD=Cr@M_App_Us3r_2024!@#$$%
-      - DATABASE_NAME=crm_system
-      - DATABASE_URL=mysql://crm_app_user:Cr@M_App_Us3r_2024!@#$$%@mysql:3306/crm_system
+      # All environment variables are loaded from .env file
+      # Override specific Docker-related variables if needed
+      - NODE_ENV=${NODE_ENV:-production}
+      - DATABASE_HOST=${DATABASE_HOST:-mysql}
+      - DATABASE_USER=${DATABASE_USER:-crm_app_user}
+      - DATABASE_PASSWORD=${DATABASE_PASSWORD}
+      - DATABASE_NAME=${DATABASE_NAME:-crm_system}
+      - DATABASE_URL=${DATABASE_URL}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000"]
@@ -37,11 +39,13 @@ services:
   mysql:
     image: mysql:8.0
     container_name: crm-mysql
+    env_file:
+      - .env
     environment:
-      MYSQL_ROOT_PASSWORD: "Cr@M_R00t_P@ssw0rd_2024!#$"
-      MYSQL_DATABASE: crm_system
-      MYSQL_USER: crm_app_user
-      MYSQL_PASSWORD: "Cr@M_App_Us3r_2024!@#$%"
+      MYSQL_ROOT_PASSWORD: "${DATABASE_PASSWORD}_ROOT"
+      MYSQL_DATABASE: "${DATABASE_NAME:-crm_system}"
+      MYSQL_USER: "${DATABASE_USER:-crm_app_user}"
+      MYSQL_PASSWORD: "${DATABASE_PASSWORD}"
     # Remove external port exposure for security
     # ports:
     #   - "3306:3306"
@@ -65,16 +69,18 @@ services:
   phpmyadmin:
     image: phpmyadmin/phpmyadmin:5.2.1
     container_name: crm-phpmyadmin
+    env_file:
+      - .env
     environment:
       PMA_HOST: mysql
       PMA_PORT: 3306
-      PMA_USER: crm_app_user
-      PMA_PASSWORD: "Cr@M_App_Us3r_2024!@#$%"
-      MYSQL_ROOT_PASSWORD: "Cr@M_R00t_P@ssw0rd_2024!#$"
-      PMA_ABSOLUTE_URI: https://ahmadreza-avandi.ir/secure-db-admin-panel-x7k9m2/
+      PMA_USER: "${DATABASE_USER:-crm_app_user}"
+      PMA_PASSWORD: "${DATABASE_PASSWORD}"
+      MYSQL_ROOT_PASSWORD: "${DATABASE_PASSWORD}_ROOT"
+      PMA_ABSOLUTE_URI: "${NEXTAUTH_URL}/secure-db-admin-panel-x7k9m2/"
       # Security settings
-      PMA_CONTROLUSER: crm_app_user
-      PMA_CONTROLPASS: "Cr@M_App_Us3r_2024!@#$%"
+      PMA_CONTROLUSER: "${DATABASE_USER:-crm_app_user}"
+      PMA_CONTROLPASS: "${DATABASE_PASSWORD}"
       # Hide phpMyAdmin version
       HIDE_PHP_VERSION: 1
     restart: unless-stopped
