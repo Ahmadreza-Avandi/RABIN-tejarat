@@ -10,10 +10,10 @@ services:
     environment:
       - NODE_ENV=production
       - DATABASE_HOST=mysql
-      - DATABASE_USER=root
-      - DATABASE_PASSWORD=1234
+      - DATABASE_USER=crm_app_user
+      - DATABASE_PASSWORD=Cr@M_App_Us3r_2024!@#$$%
       - DATABASE_NAME=crm_system
-      - DATABASE_URL=mysql://root:1234@mysql:3306/crm_system
+      - DATABASE_URL=mysql://crm_app_user:Cr@M_App_Us3r_2024!@#$$%@mysql:3306/crm_system
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000"]
@@ -38,12 +38,15 @@ services:
     image: mysql:8.0
     container_name: crm-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: 1234
+      MYSQL_ROOT_PASSWORD: "Cr@M_R00t_P@ssw0rd_2024!#$"
       MYSQL_DATABASE: crm_system
-      MYSQL_USER: crm_user
-      MYSQL_PASSWORD: 1234
-    ports:
-      - "3306:3306"
+      MYSQL_USER: crm_app_user
+      MYSQL_PASSWORD: "Cr@M_App_Us3r_2024!@#$%"
+    # Remove external port exposure for security
+    # ports:
+    #   - "3306:3306"
+    expose:
+      - "3306"
     volumes:
       - mysql_data:/var/lib/mysql
       - ./database:/docker-entrypoint-initdb.d
@@ -58,18 +61,26 @@ services:
     networks:
       - crm-network
 
-  # phpMyAdmin
+  # phpMyAdmin - Hidden and Secured
   phpmyadmin:
-    image: phpmyadmin/phpmyadmin:latest
+    image: phpmyadmin/phpmyadmin:5.2.1
     container_name: crm-phpmyadmin
     environment:
       PMA_HOST: mysql
       PMA_PORT: 3306
-      PMA_USER: root
-      PMA_PASSWORD: 1234
-      MYSQL_ROOT_PASSWORD: 1234
-      PMA_ABSOLUTE_URI: https://ahmadreza-avandi.ir/phpmyadmin/
+      PMA_USER: crm_app_user
+      PMA_PASSWORD: "Cr@M_App_Us3r_2024!@#$%"
+      MYSQL_ROOT_PASSWORD: "Cr@M_R00t_P@ssw0rd_2024!#$"
+      PMA_ABSOLUTE_URI: https://ahmadreza-avandi.ir/secure-db-admin-panel-x7k9m2/
+      # Security settings
+      PMA_CONTROLUSER: crm_app_user
+      PMA_CONTROLPASS: "Cr@M_App_Us3r_2024!@#$%"
+      # Hide phpMyAdmin version
+      HIDE_PHP_VERSION: 1
     restart: unless-stopped
+    # Remove external port exposure
+    expose:
+      - "80"
     depends_on:
       mysql:
         condition: service_healthy

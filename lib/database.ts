@@ -1,13 +1,18 @@
 import mysql from 'mysql2/promise';
 
-// Database connection configuration
+// Secure Database connection configuration
 const dbConfig = {
-  host: process.env.DATABASE_HOST || 'mysql', // Use 'mysql' as default for Docker
-  user: process.env.DATABASE_USER || 'root',
-  password: process.env.DATABASE_PASSWORD || '1234',
+  host: process.env.DATABASE_HOST || 'mysql',
+  user: process.env.DATABASE_USER || 'crm_app_user',
+  password: process.env.DATABASE_PASSWORD || 'Cr@M_App_Us3r_2024!@#$%',
   database: process.env.DATABASE_NAME || 'crm_system',
   timezone: '+00:00',
   charset: 'utf8mb4',
+  // Security settings
+  ssl: false, // Set to true if using SSL
+  connectTimeout: 10000,
+  acquireTimeout: 10000,
+  timeout: 10000,
 };
 
 // Create connection pool for better performance
@@ -64,16 +69,16 @@ export async function executeQuery<T = any>(
       if (param === undefined) return null;
       return param;
     });
-    
+
     // For Docker environment, use query instead of execute for LIMIT/OFFSET
     if (query.includes('LIMIT ? OFFSET ?') && processedParams.length >= 2) {
       const limitIndex = query.indexOf('LIMIT ?');
       const modifiedQuery = query.substring(0, limitIndex) +
         `LIMIT ${processedParams[processedParams.length - 2]} OFFSET ${processedParams[processedParams.length - 1]}`;
-      
+
       // Remove the last two parameters (limit and offset)
       const modifiedParams = processedParams.slice(0, -2);
-      
+
       const [rows] = await pool.query(modifiedQuery, modifiedParams);
       return rows as T[];
     } else {
@@ -94,22 +99,22 @@ export async function executeSingle(
   try {
     console.log('Executing query:', query);
     console.log('With params:', params);
-    
+
     // Convert parameters to proper types for MySQL
     const processedParams = params.map(param => {
       if (param === undefined) return null;
       return param;
     });
-    
+
     // For Docker environment, use query instead of execute for LIMIT/OFFSET
     if (query.includes('LIMIT ? OFFSET ?') && processedParams.length >= 2) {
       const limitIndex = query.indexOf('LIMIT ?');
       const modifiedQuery = query.substring(0, limitIndex) +
         `LIMIT ${processedParams[processedParams.length - 2]} OFFSET ${processedParams[processedParams.length - 1]}`;
-      
+
       // Remove the last two parameters (limit and offset)
       const modifiedParams = processedParams.slice(0, -2);
-      
+
       const [result] = await pool.query(modifiedQuery, modifiedParams);
       return result;
     } else {
