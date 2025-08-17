@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery, executeSingle } from '@/lib/database';
 import { hasPermission } from '@/lib/auth';
+import { createSaleNotification } from '@/lib/notification-utils';
 import { v4 as uuidv4 } from 'uuid';
 
 // Import notification services
@@ -186,25 +187,19 @@ export async function POST(req: NextRequest) {
         } = body;
 
         // Validation
-        if (!deal_id || !total_amount || total_amount <= 0) {
+        if (!total_amount || total_amount <= 0) {
             return NextResponse.json(
-                { success: false, message: 'اطلاعات فروش ناقص است' },
+                { success: false, message: 'مبلغ فروش باید بیشتر از صفر باشد' },
                 { status: 400 }
             );
         }
 
-        // Get customer_id from deal if not provided
+        // Use provided customer_id directly (no need for deal_id anymore)
         let customer_id = provided_customer_id;
-        if (!customer_id && deal_id) {
-            const dealResult = await executeQuery('SELECT customer_id FROM deals WHERE id = ?', [deal_id]);
-            if (dealResult.length > 0) {
-                customer_id = dealResult[0].customer_id;
-            }
-        }
 
         if (!customer_id) {
             return NextResponse.json(
-                { success: false, message: 'شناسه مشتری یافت نشد' },
+                { success: false, message: 'انتخاب مشتری اجباری است' },
                 { status: 400 }
             );
         }
@@ -232,19 +227,19 @@ export async function POST(req: NextRequest) {
         const saleId = uuidv4();
 
         console.log('Sale data:', {
-            saleId, deal_id, customer_id, customerName: customer.name,
+            saleId, deal_id: deal_id || 'بدون معامله', customer_id, customerName: customer.name,
             total_amount, currency, payment_status, payment_method,
             delivery_date, payment_due_date, notes, invoice_number,
             userId: finalUserId, userName
         });
 
-        // Ensure no undefined values
+        // Ensure no undefined values - deal_id can be null now
         const safeParams = [
-            saleId || uuidv4(),
-            deal_id || null,
-            customer_id || null,
+            saleId,
+            deal_id || null, // This can be null now
+            customer_id,
             customer?.name || 'نامشخص',
-            total_amount || 0,
+            total_amount,
             currency || 'IRR',
             payment_status || 'pending',
             payment_method || null,
@@ -252,7 +247,7 @@ export async function POST(req: NextRequest) {
             payment_due_date || null,
             notes || null,
             invoice_number || null,
-            finalUserId || null,
+            finalUserId,
             userName || 'نامشخص'
         ];
 
@@ -298,8 +293,8 @@ export async function POST(req: NextRequest) {
             ]);
         }
 
-        // Update deal status to closed_won if payment is completed
-        if (payment_status === 'paid') {
+        // Update deal status to closed_won if payment is completed and deal exists
+        if (payment_status === 'paid' && deal_id) {
             // Get closed_won stage
             const [closedWonStage] = await executeQuery(`
                 SELECT id FROM pipeline_stages WHERE code = 'closed_won' LIMIT 1
@@ -322,13 +317,29 @@ export async function POST(req: NextRequest) {
                 performed_by, created_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
         `, [
-            activityId, customer_id, deal_id, 'sale',
+            activityId, customer_id, deal_id || null, 'sale',
             `ثبت فروش ${formatCurrency(total_amount, currency)}`,
-            `فروش با شماره فاکتور ${invoice_number || 'نامشخص'} ثبت شد`,
+            `فروش ${deal_id ? 'مرتبط با معامله' : 'مستقل'} با شماره فاکتور ${invoice_number || 'نامشخص'} ثبت شد`,
             finalUserId
         ]);
 
-        // Send notification email and internal notification to CEO (async, don't wait for it)
+        // Create notifications for managers and CEO
+        createSaleNotification({
+            customer_name: customer?.name || 'نامشخص',
+            total_amount,
+            currency,
+            sales_person_name: userName
+        }).then((result) => {
+            if (result.success) {
+                console.log('✅ Sale notifications created successfully');
+            } else {
+                console.log('⚠️ Sale notification creation failed:', result.error);
+            }
+        }).catch((error) => {
+            console.error('❌ Sale notification error:', error);
+        });
+
+        // Send email notification to CEO (async, don't wait for it)
         const saleData = {
             id: saleId,
             total_amount,
@@ -341,7 +352,6 @@ export async function POST(req: NextRequest) {
             notes
         };
 
-        // Send email notification to CEO
         notificationService.sendSaleNotificationToCEO(saleData)
             .then((emailResult: any) => {
                 if (emailResult.success) {
@@ -352,20 +362,6 @@ export async function POST(req: NextRequest) {
             })
             .catch((error: any) => {
                 console.error('❌ Sale notification email error:', error);
-            });
-
-        // Send internal notification to CEO
-        const ceoUserId = process.env.CEO_USER_ID || 'ceo-001'; // This should be configured
-        internalNotificationSystem.notifySaleCreated(saleData, ceoUserId)
-            .then((notifResult: any) => {
-                if (notifResult.success) {
-                    console.log('✅ Internal sale notification sent to CEO');
-                } else {
-                    console.log('⚠️ Internal sale notification failed:', notifResult.error);
-                }
-            })
-            .catch((error: any) => {
-                console.error('❌ Internal sale notification error:', error);
             });
 
         return NextResponse.json({

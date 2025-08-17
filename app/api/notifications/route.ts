@@ -1,122 +1,60 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { executeQuery, executeSingle } from '@/lib/database';
+import { executeQuery } from '@/lib/database';
+import jwt from 'jsonwebtoken';
 
-// Import internal notification system
-const notificationSystem = require('@/lib/notification-system.js');
-
-// GET notifications
 export async function GET(req: NextRequest) {
     try {
-        const searchParams = new URL(req.url).searchParams;
-        const userId = req.headers.get('x-user-id');
-        const type = searchParams.get('type'); // 'unread', 'history', 'count'
-        const limit = parseInt(searchParams.get('limit') || '10');
+        const authHeader = req.headers.get('authorization');
 
-        if (!userId) {
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return NextResponse.json(
+                { success: false, message: 'توکن احراز هویت یافت نشد' },
+                { status: 401 }
+            );
+        }
+
+        const token = authHeader.substring(7);
+
+        try {
+            const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;
+
+            // Get unread notifications count
+            const [countResult] = await executeQuery(`
+        SELECT COUNT(*) as unread_count
+        FROM notifications 
+        WHERE user_id = ? AND is_read = 0
+      `, [decoded.id]);
+
+            // Get recent notifications (last 30)
+            const notifications = await executeQuery(`
+        SELECT 
+          id, title, message, type, is_read, created_at
+        FROM notifications 
+        WHERE user_id = ? 
+        ORDER BY created_at DESC 
+        LIMIT 30
+      `, [decoded.id]);
+
             return NextResponse.json({
-                success: false,
-                message: 'Unauthorized'
-            }, { status: 401 });
+                success: true,
+                data: {
+                    unread_count: countResult?.unread_count || 0,
+                    notifications: notifications || []
+                }
+            });
+
+        } catch (jwtError) {
+            return NextResponse.json(
+                { success: false, message: 'توکن نامعتبر است' },
+                { status: 401 }
+            );
         }
 
-        switch (type) {
-            case 'unread':
-                const unreadResult = await notificationSystem.getUnreadNotifications(userId, limit);
-                return NextResponse.json(unreadResult);
-
-            case 'history':
-                const historyResult = await notificationSystem.getNotificationHistory(userId, limit || 30);
-                return NextResponse.json(historyResult);
-
-            case 'count':
-                const countResult = await notificationSystem.getUnreadCount(userId);
-                return NextResponse.json(countResult);
-
-            default:
-                // Default: return recent notifications (both read and unread)
-                const notifications = await executeQuery(`
-                    SELECT * FROM notifications 
-                    WHERE user_id = ? 
-                    ORDER BY created_at DESC 
-                    LIMIT ?
-                `, [userId, limit]);
-
-                return NextResponse.json({
-                    success: true,
-                    data: notifications
-                });
-        }
     } catch (error) {
-        console.error('Error in notifications API:', error);
-        return NextResponse.json({
-            success: false,
-            message: 'خطا در دریافت اعلان‌ها'
-        }, { status: 500 });
-    }
-}
-
-// POST - Create notification (for testing)
-export async function POST(req: NextRequest) {
-    try {
-        const userId = req.headers.get('x-user-id');
-        const body = await req.json();
-
-        if (!userId) {
-            return NextResponse.json({
-                success: false,
-                message: 'Unauthorized'
-            }, { status: 401 });
-        }
-
-        const result = await notificationSystem.createNotification({
-            userId: body.targetUserId || userId,
-            type: body.type,
-            title: body.title,
-            message: body.message,
-            relatedId: body.relatedId,
-            relatedType: body.relatedType
-        });
-
-        return NextResponse.json(result);
-    } catch (error) {
-        console.error('Error creating notification:', error);
-        return NextResponse.json({
-            success: false,
-            message: 'خطا در ایجاد اعلان'
-        }, { status: 500 });
-    }
-}
-
-// PUT - Mark notifications as read
-export async function PUT(req: NextRequest) {
-    try {
-        const userId = req.headers.get('x-user-id');
-        const body = await req.json();
-
-        if (!userId) {
-            return NextResponse.json({
-                success: false,
-                message: 'Unauthorized'
-            }, { status: 401 });
-        }
-
-        if (body.action === 'mark_all_read') {
-            const result = await notificationSystem.markAllAsRead(userId);
-            return NextResponse.json(result);
-        } else if (body.notificationId) {
-            const result = await notificationSystem.markAsRead(body.notificationId, userId);
-            return NextResponse.json(result);
-        } else {
-            return NextResponse.json({
-                success: false,
-                message: 'پارامترهای نامعتبر'
-            }, { status: 400 });
-        }
-    } catch (error) {
-        console.error('Error updating notification:', error);
-        return NextResponse.json({
-            success: false,
-            message: 'خطا در به‌روزرسانی اعلان'
-        }, { status: 500 });
+        console.error('Get notifications API error:', error);
+        return NextResponse.json(
+            { success: false, message: 'خطا در دریافت اطلاعات' },
+            { status: 500 }
+        );
     }
 }

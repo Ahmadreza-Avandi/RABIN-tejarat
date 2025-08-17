@@ -166,7 +166,8 @@ export default function NotificationDropdown() {
             'report_submitted': '📊',
             'activity_completed': '✅',
             'project_completed': '🎉',
-            'message_received': '💬'
+            'message_received': '💬',
+            'task_completed': '✅'
         };
         return icons[type] || '🔔';
     };

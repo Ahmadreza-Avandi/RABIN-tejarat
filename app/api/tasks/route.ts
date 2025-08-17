@@ -341,6 +341,65 @@ export async function PUT(req: NextRequest) {
         updateFields.push('completion_notes = ?');
         updateParams.push(completion_notes);
       }
+      
+      // Send notification to CEO when task is completed
+      try {
+        // Get task details
+        const taskDetails = await executeQuery(`
+          SELECT t.*, u.name as assigned_to_name
+          FROM tasks t
+          LEFT JOIN users u ON t.assigned_to = u.id
+          WHERE t.id = ?
+        `, [taskId]);
+        
+        if (taskDetails.length > 0) {
+          const taskData = {
+            id: taskId,
+            title: taskDetails[0].title,
+            completed_by_name: user.name,
+            assigned_to_name: taskDetails[0].assigned_to_name
+          };
+          
+          // Get CEO user ID
+          const ceoUserId = process.env.CEO_USER_ID || 'ceo-001'; // This should be configured
+          
+          // Send notification to CEO
+          internalNotificationSystem.notifyTaskCompleted(taskData, ceoUserId)
+            .then((notifResult: any) => {
+              if (notifResult.success) {
+                console.log('✅ Task completion notification sent to CEO');
+              } else {
+                console.log('⚠️ Task completion notification failed:', notifResult.error);
+              }
+            })
+            .catch((error: any) => {
+              console.error('❌ Task completion notification error:', error);
+            });
+            
+          // Send email notification to CEO
+          const ceoUsers = await executeQuery(`
+            SELECT email, name FROM users WHERE role = 'ceo' AND status = 'active'
+          `);
+          
+          if (ceoUsers.length > 0) {
+            const ceoUser = ceoUsers[0];
+            notificationService.sendTaskCompletionEmail(ceoUser.email, ceoUser.name, taskData)
+              .then((emailResult: any) => {
+                if (emailResult.success) {
+                  console.log('✅ Task completion email sent to CEO:', ceoUser.email);
+                } else {
+                  console.log('⚠️ Task completion email failed:', emailResult.error);
+                }
+              })
+              .catch((error: any) => {
+                console.error('❌ Task completion email error:', error);
+              });
+          }
+        }
+      } catch (error) {
+        console.error('❌ Error sending task completion notification:', error);
+        // Don't fail the task update if notification fails
+      }
     }
 
     updateParams.push(taskId);

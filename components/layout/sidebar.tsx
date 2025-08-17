@@ -105,7 +105,15 @@ const routeDisplayNames: { [key: string]: string } = {
   '/dashboard/products': 'محصولات',
 };
 
-export const ResponsiveSidebar = () => {
+interface ResponsiveSidebarProps {
+  mobileOpen?: boolean;
+  onMobileClose?: () => void;
+}
+
+export const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({
+  mobileOpen = false,
+  onMobileClose
+}) => {
   const pathname = usePathname();
   const { sidebarCollapsed, setSidebarCollapsed } = useAppStore();
   const [expandedItems, setExpandedItems] = useState<string[]>([]);
@@ -113,19 +121,13 @@ export const ResponsiveSidebar = () => {
   const [loading, setLoading] = useState(true);
   const [isHovered, setIsHovered] = useState(false);
 
-  // Handle mouse enter/leave for desktop
+  // Handle mouse enter/leave for desktop - disabled for always open sidebar
   const handleMouseEnter = () => {
-    if (window.innerWidth >= 1024) { // lg breakpoint
-      setIsHovered(true);
-      setSidebarCollapsed(false);
-    }
+    // Sidebar stays open on desktop - no hover behavior
   };
 
   const handleMouseLeave = () => {
-    if (window.innerWidth >= 1024) {
-      setIsHovered(false);
-      setSidebarCollapsed(true);
-    }
+    // Sidebar stays open on desktop - no hover behavior
   };
 
   useEffect(() => {
@@ -493,21 +495,36 @@ export const ResponsiveSidebar = () => {
                   "h-5 w-5 transition-colors duration-300",
                   isActive ? "text-primary" : "group-hover:text-primary"
                 )} />
-                {!sidebarCollapsed && (
-                  <>
-                    <span className="flex-1 font-vazir">{item.title}</span>
-                    {item.badge && (
-                      <Badge variant="secondary" className="mr-auto bg-accent/20 text-accent border-accent/30">
-                        {item.badge}
-                      </Badge>
-                    )}
-                    {isExpanded ? (
-                      <ChevronDown className="h-4 w-4 transition-transform duration-300" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 transition-transform duration-300" />
-                    )}
-                  </>
-                )}
+                <div className="lg:flex hidden items-center space-x-3 flex-1">
+                  <span className="flex-1 font-vazir">{item.title}</span>
+                  {item.badge && (
+                    <Badge variant="secondary" className="mr-auto bg-accent/20 text-accent border-accent/30">
+                      {item.badge}
+                    </Badge>
+                  )}
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4 transition-transform duration-300" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 transition-transform duration-300" />
+                  )}
+                </div>
+                <div className="lg:hidden flex items-center space-x-3 flex-1">
+                  {!sidebarCollapsed && (
+                    <>
+                      <span className="flex-1 font-vazir">{item.title}</span>
+                      {item.badge && (
+                        <Badge variant="secondary" className="mr-auto bg-accent/20 text-accent border-accent/30">
+                          {item.badge}
+                        </Badge>
+                      )}
+                      {isExpanded ? (
+                        <ChevronDown className="h-4 w-4 transition-transform duration-300" />
+                      ) : (
+                        <ChevronRight className="h-4 w-4 transition-transform duration-300" />
+                      )}
+                    </>
+                  )}
+                </div>
               </div>
             </Button>
           ) : (
@@ -516,22 +533,37 @@ export const ResponsiveSidebar = () => {
                 "h-5 w-5 transition-colors duration-300",
                 isActive ? "text-primary" : "group-hover:text-primary"
               )} />
-              {!sidebarCollapsed && (
-                <>
-                  <span className="flex-1 font-vazir">{item.title}</span>
-                  {item.badge && (
-                    <Badge variant="secondary" className="mr-auto bg-accent/20 text-accent border-accent/30">
-                      {item.badge}
-                    </Badge>
-                  )}
-                </>
-              )}
+              <div className="lg:flex hidden items-center space-x-3 flex-1">
+                <span className="flex-1 font-vazir">{item.title}</span>
+                {item.badge && (
+                  <Badge variant="secondary" className="mr-auto bg-accent/20 text-accent border-accent/30">
+                    {item.badge}
+                  </Badge>
+                )}
+              </div>
+              <div className="lg:hidden flex items-center space-x-3 flex-1">
+                {!sidebarCollapsed && (
+                  <>
+                    <span className="flex-1 font-vazir">{item.title}</span>
+                    {item.badge && (
+                      <Badge variant="secondary" className="mr-auto bg-accent/20 text-accent border-accent/30">
+                        {item.badge}
+                      </Badge>
+                    )}
+                  </>
+                )}
+              </div>
             </Link>
           )}
         </div>
 
+        {hasChildren && isExpanded && (
+          <div className="mr-4 space-y-1 animate-slide-in-right lg:block hidden">
+            {item.children?.map(child => renderNavItem(child, level + 1))}
+          </div>
+        )}
         {hasChildren && isExpanded && !sidebarCollapsed && (
-          <div className="mr-4 space-y-1 animate-slide-in-right">
+          <div className="mr-4 space-y-1 animate-slide-in-right lg:hidden block">
             {item.children?.map(child => renderNavItem(child, level + 1))}
           </div>
         )}
@@ -542,48 +574,32 @@ export const ResponsiveSidebar = () => {
   return (
     <>
       {/* Mobile overlay */}
-      {!sidebarCollapsed && (
+      {(mobileOpen || !sidebarCollapsed) && (
         <div
-          className="fixed inset-0 bg-black/50 lg:hidden z-40 backdrop-blur-sm"
-          onClick={() => setSidebarCollapsed(true)}
+          className="fixed inset-0 bg-black/50 lg:hidden z-30 backdrop-blur-sm"
+          onClick={() => {
+            setSidebarCollapsed(true);
+            onMobileClose?.();
+          }}
         />
       )}
 
       {/* Sidebar */}
       <div
         className={cn(
-          'fixed right-0 top-0 z-50 h-screen bg-card/95 backdrop-blur-xl border-l border-border/50 transition-all duration-300 shadow-2xl flex flex-col',
-          sidebarCollapsed && !isHovered ? 'w-16' : 'w-72'
+          'fixed right-0 top-16 z-40 h-[calc(100vh-4rem)] bg-card/95 backdrop-blur-xl border-l border-border/50 transition-all duration-300 shadow-2xl flex flex-col',
+          // Desktop: always show full width
+          'lg:w-72',
+          // Mobile: show/hide based on mobileOpen or sidebarCollapsed
+          'lg:translate-x-0',
+          (mobileOpen || !sidebarCollapsed) ? 'translate-x-0 w-72' : 'translate-x-full w-72'
         )}
-        onMouseEnter={handleMouseEnter}
-        onMouseLeave={handleMouseLeave}
       >
-        <div className="flex h-16 items-center justify-between border-b border-border/50 px-4 bg-gradient-to-r from-primary/5 via-secondary/5 to-accent/5">
-          <div className="flex items-center space-x-2">
-            <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary via-secondary to-accent flex items-center justify-center">
-              <Building2 className="h-5 w-5 text-white" />
-            </div>
-            {(!sidebarCollapsed || isHovered) && (
-              <h1 className="text-xl font-bold font-vazir bg-gradient-to-r from-primary via-secondary to-accent bg-clip-text text-transparent">
-                داشبورد مدیریت
-              </h1>
-            )}
-          </div>
-          {/* Mobile menu button - only visible on mobile */}
-          <div className="block lg:hidden">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-              className="hover:bg-primary/10"
-            >
-              {sidebarCollapsed ? <Menu className="h-4 w-4" /> : <X className="h-4 w-4" />}
-            </Button>
-          </div>
-        </div>
+        {/* Sidebar Header - Hidden since we have main header now */}
+        <div className="hidden"></div>
 
         {/* Main Navigation */}
-        <nav className="space-y-2 p-4 overflow-y-auto flex-1">
+        <nav className="space-y-2 p-4 overflow-y-auto flex-1 pt-6">
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -603,8 +619,9 @@ export const ResponsiveSidebar = () => {
                 pathname === '/dashboard/profile' && 'bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20 text-primary shadow-lg border border-primary/20'
               )}>
                 <User className="h-5 w-5 flex-shrink-0" />
-                {(!sidebarCollapsed || isHovered) && (
-                  <span className="font-vazir">پروفایل کاربری</span>
+                <span className="font-vazir lg:inline hidden">پروفایل کاربری</span>
+                {!sidebarCollapsed && (
+                  <span className="font-vazir lg:hidden inline">پروفایل کاربری</span>
                 )}
               </div>
             </Link>
@@ -616,8 +633,9 @@ export const ResponsiveSidebar = () => {
                 pathname === '/dashboard/settings' && 'bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20 text-primary shadow-lg border border-primary/20'
               )}>
                 <Settings className="h-5 w-5 flex-shrink-0" />
-                {(!sidebarCollapsed || isHovered) && (
-                  <span className="font-vazir">تنظیمات سیستم</span>
+                <span className="font-vazir lg:inline hidden">تنظیمات سیستم</span>
+                {!sidebarCollapsed && (
+                  <span className="font-vazir lg:hidden inline">تنظیمات سیستم</span>
                 )}
               </div>
             </Link>

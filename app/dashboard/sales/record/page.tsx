@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { PersianDatePicker } from '@/components/ui/persian-date-picker';
+import { formatCurrency } from '@/lib/currency-utils';
 import {
     ArrowRight,
     Plus,
@@ -135,7 +136,7 @@ export default function RecordSalePage() {
 
     const handleSubmit = async () => {
         // Validation
-        if (!saleData.deal_id || !saleData.customer_id || !saleData.total_amount) {
+        if (!saleData.customer_id || !saleData.total_amount) {
             toast({
                 title: "خطا",
                 description: "لطفاً تمام فیلدهای اجباری را پر کنید",
@@ -176,14 +177,14 @@ export default function RecordSalePage() {
                     title: "موفق",
                     description: "فروش با موفقیت ثبت شد"
                 });
-                
+
                 // Show confirmation dialog for sending feedback form
                 const sendFeedback = window.confirm("آیا می‌خواهید فرم بازخورد فروش را برای مشتری ارسال کنید؟");
-                
+
                 if (sendFeedback) {
                     // Get customer info
                     const customer = customers.find(c => c.id === saleData.customer_id);
-                    
+
                     if (customer) {
                         try {
                             // Get sales feedback form
@@ -192,12 +193,12 @@ export default function RecordSalePage() {
                                     'Authorization': token ? `Bearer ${token}` : '',
                                 },
                             });
-                            
+
                             const formsData = await formsResponse.json();
-                            
+
                             if (formsData.success && formsData.data.length > 0) {
                                 const salesForm = formsData.data.find((form: { id: string, type: string }) => form.type === 'sales');
-                                
+
                                 if (salesForm) {
                                     // Send feedback form
                                     const sendResponse = await fetch('/api/feedback/forms/send', {
@@ -213,9 +214,9 @@ export default function RecordSalePage() {
                                             customerName: customer.name,
                                         }),
                                     });
-                                    
+
                                     const sendResult = await sendResponse.json();
-                                    
+
                                     if (sendResult.success) {
                                         toast({
                                             title: "موفق",
@@ -252,7 +253,7 @@ export default function RecordSalePage() {
                         }
                     }
                 }
-                
+
                 router.push('/dashboard/sales');
             } else {
                 toast({
@@ -314,12 +315,7 @@ export default function RecordSalePage() {
         setSaleData(prev => ({ ...prev, total_amount: totalAmount.toString() }));
     };
 
-    const formatCurrency = (amount: number, currency: string = 'IRR') => {
-        if (currency === 'IRR') {
-            return `${(amount / 1000000).toLocaleString('fa-IR')} میلیون تومان`;
-        }
-        return `${amount.toLocaleString('fa-IR')} ${currency}`;
-    };
+    // formatCurrency is now imported from lib/currency-utils
 
     if (loading) {
         return (
@@ -360,32 +356,7 @@ export default function RecordSalePage() {
                 </CardHeader>
                 <CardContent className="space-y-6">
                     {/* اطلاعات کلی */}
-                    <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                            <Label className="font-vazir">معامله *</Label>
-                            <Select value={saleData.deal_id} onValueChange={(value) => {
-                                setSaleData({ ...saleData, deal_id: value });
-                                const selectedDeal = deals.find(d => d.id === value);
-                                if (selectedDeal) {
-                                    setSaleData(prev => ({
-                                        ...prev,
-                                        customer_id: selectedDeal.customer_id,
-                                        total_amount: selectedDeal.total_value.toString()
-                                    }));
-                                }
-                            }}>
-                                <SelectTrigger className="font-vazir">
-                                    <SelectValue placeholder="انتخاب معامله" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                    {deals.map(deal => (
-                                        <SelectItem key={deal.id} value={deal.id} className="font-vazir">
-                                            {deal.title} - {deal.customer_name}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
+                    <div className="grid grid-cols-1 gap-4">
                         <div className="space-y-2">
                             <Label className="font-vazir">مشتری *</Label>
                             <Select value={saleData.customer_id} onValueChange={(value) => setSaleData({ ...saleData, customer_id: value })}>

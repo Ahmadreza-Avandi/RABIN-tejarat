@@ -134,7 +134,8 @@ export default function NotificationsPage() {
             'report_submitted': '📊',
             'activity_completed': '✅',
             'project_completed': '🎉',
-            'message_received': '💬'
+            'message_received': '💬',
+            'task_completed': '✅'
         };
         return icons[type] || '🔔';
     };
@@ -147,7 +148,8 @@ export default function NotificationsPage() {
             'report_submitted': 'bg-orange-100 text-orange-800',
             'activity_completed': 'bg-emerald-100 text-emerald-800',
             'project_completed': 'bg-pink-100 text-pink-800',
-            'message_received': 'bg-cyan-100 text-cyan-800'
+            'message_received': 'bg-cyan-100 text-cyan-800',
+            'task_completed': 'bg-emerald-100 text-emerald-800'
         };
         return colors[type] || 'bg-gray-100 text-gray-800';
     };

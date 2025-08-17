@@ -16,6 +16,7 @@ import { Opportunity } from '@/lib/types';
 import { useToast } from '@/hooks/use-toast';
 import { PersianDatePicker } from '@/components/ui/persian-date-picker';
 import moment from 'moment-jalaali';
+import { formatCurrency } from '@/lib/currency-utils';
 import {
   Plus, DollarSign, TrendingUp, Target, Calendar, Receipt, ShoppingCart,
   Search, Package, User, CheckCircle, Clock, AlertTriangle, Eye, Edit,
@@ -228,7 +229,7 @@ export default function SalesPage() {
 
   const handleAddSale = async () => {
     // Validation
-    if (!newSale.deal_id || !newSale.customer_id || !newSale.total_amount) {
+    if (!newSale.customer_id || !newSale.total_amount) {
       toast({
         title: "خطا",
         description: "لطفاً تمام فیلدهای اجباری را پر کنید",
@@ -348,24 +349,7 @@ export default function SalesPage() {
     setNewSale(prev => ({ ...prev, total_amount: totalAmount.toString() }));
   };
 
-  const formatCurrency = (amount: number, currency: string = 'IRR') => {
-    if (currency === 'IRR') {
-      if (amount >= 1000000000) {
-        // میلیارد تومان
-        return `${(amount / 1000000000).toLocaleString('fa-IR', { maximumFractionDigits: 1 })} میلیارد تومان`;
-      } else if (amount >= 1000000) {
-        // میلیون تومان
-        return `${(amount / 1000000).toLocaleString('fa-IR', { maximumFractionDigits: 1 })} میلیون تومان`;
-      } else if (amount >= 1000) {
-        // هزار تومان
-        return `${(amount / 1000).toLocaleString('fa-IR', { maximumFractionDigits: 0 })} هزار تومان`;
-      } else {
-        // تومان
-        return `${amount.toLocaleString('fa-IR')} تومان`;
-      }
-    }
-    return `${amount.toLocaleString('fa-IR')} ${currency}`;
-  };
+  // formatCurrency is now imported from lib/currency-utils
 
   const formatDate = (dateString: string) => {
     if (!dateString) return 'تعیین نشده';
@@ -442,28 +426,7 @@ export default function SalesPage() {
             </DialogHeader>
             <div className="grid gap-6 py-4">
               {/* اطلاعات کلی */}
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label className="font-vazir">معامله *</Label>
-                  <Select value={newSale.deal_id} onValueChange={(value) => {
-                    setNewSale({ ...newSale, deal_id: value });
-                    const selectedDeal = deals.find(d => d.id === value);
-                    if (selectedDeal) {
-                      setNewSale(prev => ({ ...prev, customer_id: selectedDeal.customer_id }));
-                    }
-                  }}>
-                    <SelectTrigger className="font-vazir">
-                      <SelectValue placeholder="انتخاب معامله" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {deals.map(deal => (
-                        <SelectItem key={deal.id} value={deal.id} className="font-vazir">
-                          {deal.title} - {deal.customer_name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
+              <div className="grid grid-cols-1 gap-4">
                 <div className="space-y-2">
                   <Label className="font-vazir">مشتری *</Label>
                   <Select value={newSale.customer_id} onValueChange={(value) => setNewSale({ ...newSale, customer_id: value })}>
@@ -670,11 +633,17 @@ export default function SalesPage() {
           </CardHeader>
           <CardContent>
             <div className="text-lg font-bold text-green-600 font-vazir">
-              {formatCurrency(filteredSales.reduce((sum, sale) => sum + sale.total_amount, 0))}
+              {formatCurrency(filteredSales.reduce((sum, sale) => {
+                const amount = typeof sale.total_amount === 'string' ? parseFloat(sale.total_amount) : sale.total_amount;
+                return sum + (isNaN(amount) ? 0 : amount);
+              }, 0))}
             </div>
             {filteredSales.length !== sales.length && (
               <div className="text-xs text-muted-foreground font-vazir mt-1">
-                از کل: {formatCurrency(sales.reduce((sum, sale) => sum + sale.total_amount, 0))}
+                از کل: {formatCurrency(sales.reduce((sum, sale) => {
+                  const amount = typeof sale.total_amount === 'string' ? parseFloat(sale.total_amount) : sale.total_amount;
+                  return sum + (isNaN(amount) ? 0 : amount);
+                }, 0))}
               </div>
             )}
           </CardContent>

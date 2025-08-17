@@ -4,6 +4,10 @@ import { getUserFromToken } from '@/lib/auth';
 import { v4 as uuidv4 } from 'uuid';
 import { toPersianDate } from '@/lib/utils/date';
 
+// Import notification services
+const notificationService = require('@/lib/notification-service.js');
+const internalNotificationSystem = require('@/lib/notification-system.js');
+
 // GET /api/reports - Get daily reports
 export async function GET(req: NextRequest) {
     try {
@@ -255,6 +259,46 @@ export async function POST(req: NextRequest) {
                 challenges || null,
                 achievements || null
             ]);
+
+            // Send notification to managers when a report is submitted
+            try {
+                // Get managers who should receive report notifications
+                const managers = await executeQuery(`
+                    SELECT id, name, email, role
+                    FROM users
+                    WHERE role IN ('ceo', 'manager', 'sales_manager')
+                    AND status = 'active'
+                `);
+
+                if (managers.length > 0) {
+                    const reportData = {
+                        id: reportId,
+                        title: `گزارش روزانه ${persianDate}`,
+                        submitted_by_name: user.name,
+                        date: persianDate,
+                        work_description: work_description.substring(0, 100) + (work_description.length > 100 ? '...' : '')
+                    };
+
+                    // Send notifications to each manager
+                    for (const manager of managers) {
+                        // Send internal notification
+                        internalNotificationSystem.notifyReportSubmitted(reportData, manager.id)
+                            .then((notifResult: any) => {
+                                if (notifResult.success) {
+                                    console.log(`✅ Report notification sent to manager: ${manager.name}`);
+                                } else {
+                                    console.log(`⚠️ Report notification failed for manager ${manager.name}:`, notifResult.error);
+                                }
+                            })
+                            .catch((error: any) => {
+                                console.error(`❌ Report notification error for manager ${manager.name}:`, error);
+                            });
+                    }
+                }
+            } catch (error) {
+                console.error('❌ Error sending report notifications:', error);
+                // Don't fail the report creation if notification fails
+            }
 
             return NextResponse.json({
                 success: true,

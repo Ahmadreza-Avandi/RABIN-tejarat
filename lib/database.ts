@@ -8,8 +8,6 @@ const dbConfig = {
   database: process.env.DATABASE_NAME || 'crm_system',
   timezone: '+00:00',
   charset: 'utf8mb4',
-  // Security settings
-  ssl: false, // Set to true if using SSL
   connectTimeout: 10000,
   acquireTimeout: 10000,
   timeout: 10000,
