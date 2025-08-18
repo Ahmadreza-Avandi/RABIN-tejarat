@@ -101,7 +101,6 @@ const routeDisplayNames: { [key: string]: string } = {
   '/dashboard/settings': 'تنظیمات',
   '/dashboard/system-monitoring': 'مانیتورینگ سیستم',
   '/dashboard/settings': 'تنظیمات سیستم',
-
   '/dashboard/products': 'محصولات',
 };
 
@@ -496,7 +495,7 @@ export const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({
                   isActive ? "text-primary" : "group-hover:text-primary"
                 )} />
                 <div className="lg:flex hidden items-center space-x-3 flex-1">
-                  <span className="flex-1 font-vazir">{item.title}</span>
+                  <span className="flex-1 font-vazir text-sm">{item.title}</span>
                   {item.badge && (
                     <Badge variant="secondary" className="mr-auto bg-accent/20 text-accent border-accent/30">
                       {item.badge}
@@ -509,20 +508,16 @@ export const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({
                   )}
                 </div>
                 <div className="lg:hidden flex items-center space-x-3 flex-1">
-                  {!sidebarCollapsed && (
-                    <>
-                      <span className="flex-1 font-vazir">{item.title}</span>
-                      {item.badge && (
-                        <Badge variant="secondary" className="mr-auto bg-accent/20 text-accent border-accent/30">
-                          {item.badge}
-                        </Badge>
-                      )}
-                      {isExpanded ? (
-                        <ChevronDown className="h-4 w-4 transition-transform duration-300" />
-                      ) : (
-                        <ChevronRight className="h-4 w-4 transition-transform duration-300" />
-                      )}
-                    </>
+                  <span className="flex-1 font-vazir text-sm">{item.title}</span>
+                  {item.badge && (
+                    <Badge variant="secondary" className="mr-auto bg-accent/20 text-accent border-accent/30 text-xs">
+                      {item.badge}
+                    </Badge>
+                  )}
+                  {isExpanded ? (
+                    <ChevronDown className="h-4 w-4 transition-transform duration-300" />
+                  ) : (
+                    <ChevronRight className="h-4 w-4 transition-transform duration-300" />
                   )}
                 </div>
               </div>
@@ -534,7 +529,7 @@ export const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({
                 isActive ? "text-primary" : "group-hover:text-primary"
               )} />
               <div className="lg:flex hidden items-center space-x-3 flex-1">
-                <span className="flex-1 font-vazir">{item.title}</span>
+                <span className="flex-1 font-vazir text-sm">{item.title}</span>
                 {item.badge && (
                   <Badge variant="secondary" className="mr-auto bg-accent/20 text-accent border-accent/30">
                     {item.badge}
@@ -542,15 +537,11 @@ export const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({
                 )}
               </div>
               <div className="lg:hidden flex items-center space-x-3 flex-1">
-                {!sidebarCollapsed && (
-                  <>
-                    <span className="flex-1 font-vazir">{item.title}</span>
-                    {item.badge && (
-                      <Badge variant="secondary" className="mr-auto bg-accent/20 text-accent border-accent/30">
-                        {item.badge}
-                      </Badge>
-                    )}
-                  </>
+                <span className="flex-1 font-vazir text-sm">{item.title}</span>
+                {item.badge && (
+                  <Badge variant="secondary" className="mr-auto bg-accent/20 text-accent border-accent/30 text-xs">
+                    {item.badge}
+                  </Badge>
                 )}
               </div>
             </Link>
@@ -562,7 +553,7 @@ export const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({
             {item.children?.map(child => renderNavItem(child, level + 1))}
           </div>
         )}
-        {hasChildren && isExpanded && !sidebarCollapsed && (
+        {hasChildren && isExpanded && (
           <div className="mr-4 space-y-1 animate-slide-in-right lg:hidden block">
             {item.children?.map(child => renderNavItem(child, level + 1))}
           </div>
@@ -592,14 +583,14 @@ export const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({
           'lg:w-72',
           // Mobile: show/hide based on mobileOpen or sidebarCollapsed
           'lg:translate-x-0',
-          (mobileOpen || !sidebarCollapsed) ? 'translate-x-0 w-72' : 'translate-x-full w-72'
+          (mobileOpen || !sidebarCollapsed) ? 'translate-x-0 w-[85vw] max-w-[300px]' : 'translate-x-full w-[85vw] max-w-[300px]'
         )}
       >
         {/* Sidebar Header - Hidden since we have main header now */}
         <div className="hidden"></div>
 
         {/* Main Navigation */}
-        <nav className="space-y-2 p-4 overflow-y-auto flex-1 pt-6">
+        <nav className="space-y-1 p-3 overflow-y-auto flex-1 pt-4">
           {loading ? (
             <div className="flex items-center justify-center py-8">
               <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
@@ -619,10 +610,8 @@ export const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({
                 pathname === '/dashboard/profile' && 'bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20 text-primary shadow-lg border border-primary/20'
               )}>
                 <User className="h-5 w-5 flex-shrink-0" />
-                <span className="font-vazir lg:inline hidden">پروفایل کاربری</span>
-                {!sidebarCollapsed && (
-                  <span className="font-vazir lg:hidden inline">پروفایل کاربری</span>
-                )}
+                <span className="font-vazir text-sm lg:inline hidden">پروفایل کاربری</span>
+                <span className="font-vazir text-sm lg:hidden inline">پروفایل کاربری</span>
               </div>
             </Link>
 
@@ -633,10 +622,8 @@ export const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({
                 pathname === '/dashboard/settings' && 'bg-gradient-to-r from-primary/20 via-secondary/20 to-accent/20 text-primary shadow-lg border border-primary/20'
               )}>
                 <Settings className="h-5 w-5 flex-shrink-0" />
-                <span className="font-vazir lg:inline hidden">تنظیمات سیستم</span>
-                {!sidebarCollapsed && (
-                  <span className="font-vazir lg:hidden inline">تنظیمات سیستم</span>
-                )}
+                <span className="font-vazir text-sm lg:inline hidden">تنظیمات سیستم</span>
+                <span className="font-vazir text-sm lg:hidden inline">تنظیمات سیستم</span>
               </div>
             </Link>
           </div>
