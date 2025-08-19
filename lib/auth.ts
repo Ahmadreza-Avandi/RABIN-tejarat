@@ -22,10 +22,16 @@ export function generateToken(payload: any): string {
 // Get user ID from token
 export async function getUserFromToken(token: string): Promise<string | null> {
   try {
+    console.log('🔍 Verifying token:', token ? 'Token exists' : 'No token');
+    console.log('🔍 JWT_SECRET:', JWT_SECRET ? 'Secret exists' : 'No secret');
+
     const decoded = jwt.verify(token, JWT_SECRET) as { id: string };
+    console.log('🔍 Decoded token:', decoded);
+
     return decoded.id;
   } catch (error) {
-    console.error('Error decoding token:', error);
+    console.error('❌ Error decoding token:', error);
+    console.error('❌ Token value:', token);
     return null;
   }
 }

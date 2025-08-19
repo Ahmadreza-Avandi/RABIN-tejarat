@@ -20,10 +20,13 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        console.log('🔍 Processing voice analysis with token:', token ? 'Token exists' : 'No token');
+
         const userId = await getUserFromToken(token);
-        console.log('API: User ID from token:', userId);
+        console.log('🔍 User ID from token:', userId);
 
         if (!userId) {
+            console.log('❌ Token validation failed');
             return NextResponse.json(
                 { success: false, message: 'توکن نامعتبر است' },
                 { status: 401 }

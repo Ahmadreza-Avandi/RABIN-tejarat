@@ -4,16 +4,23 @@ import jwt from 'jsonwebtoken';
 
 export async function GET(req: NextRequest) {
   try {
+    // Try to get token from Authorization header first
     const authHeader = req.headers.get('authorization');
+    let token = null;
 
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      token = authHeader.substring(7);
+    } else {
+      // If no Authorization header, try to get from cookie
+      token = req.cookies.get('auth-token')?.value;
+    }
+
+    if (!token) {
       return NextResponse.json(
         { success: false, message: 'توکن احراز هویت یافت نشد' },
         { status: 401 }
       );
     }
-
-    const token = authHeader.substring(7);
 
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'your-secret-key') as any;

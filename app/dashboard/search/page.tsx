@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -31,7 +31,7 @@ interface SearchResult {
     created_at?: string;
 }
 
-export default function SearchPage() {
+function SearchContent() {
     const searchParams = useSearchParams();
     const initialQuery = searchParams.get('q') || '';
     const [searchQuery, setSearchQuery] = useState(initialQuery);
@@ -284,5 +284,22 @@ export default function SearchPage() {
                 </Card>
             )}
         </div>
+    );
+}
+
+export default function SearchPage() {
+    return (
+        <Suspense fallback={
+            <div className="space-y-6 animate-fade-in-up">
+                <div>
+                    <h1 className="text-3xl font-bold font-vazir">جستجو</h1>
+                    <p className="text-muted-foreground font-vazir">
+                        در حال بارگذاری...
+                    </p>
+                </div>
+            </div>
+        }>
+            <SearchContent />
+        </Suspense>
     );
 }
