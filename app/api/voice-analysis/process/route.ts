@@ -6,12 +6,17 @@ import { getUserFromToken } from '@/lib/auth';
 export async function POST(req: NextRequest) {
     try {
         // Get token from cookie or Authorization header
-        const token = req.cookies.get('auth-token')?.value ||
-            req.headers.get('authorization')?.replace('Bearer ', '');
+        const cookieToken = req.cookies.get('auth-token')?.value;
+        const headerToken = req.headers.get('authorization')?.replace('Bearer ', '');
+        const token = cookieToken || headerToken;
 
-        console.log('API: Token received:', token ? 'Yes' : 'No');
-        console.log('API: Cookie token:', req.cookies.get('auth-token')?.value ? 'Yes' : 'No');
-        console.log('API: Header token:', req.headers.get('authorization') ? 'Yes' : 'No');
+        console.log('🔍 API: Cookie token:', cookieToken ? 'Yes' : 'No');
+        console.log('🔍 API: Header token:', headerToken ? 'Yes' : 'No');
+        console.log('🔍 API: Final token:', token ? 'Yes' : 'No');
+
+        // Debug: Show actual token values (first 20 chars only for security)
+        if (cookieToken) console.log('🔍 Cookie token preview:', cookieToken.substring(0, 20) + '...');
+        if (headerToken) console.log('🔍 Header token preview:', headerToken.substring(0, 20) + '...');
 
         if (!token) {
             return NextResponse.json(

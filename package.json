@@ -19,7 +19,8 @@
   },
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "NODE_OPTIONS='--max-old-space-size=1024' next build",
+    "build:memory-safe": "NODE_OPTIONS='--max-old-space-size=768 --max-semi-space-size=32' next build",
     "start": "next start",
     "lint": "next lint",
     "setup-feedback": "node scripts/setup-feedback-system.js",

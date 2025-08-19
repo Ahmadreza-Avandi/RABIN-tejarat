@@ -11,14 +11,20 @@ RUN npm ci --only=production --prefer-offline --no-audit --progress=false
 # مرحله 3: Builder
 FROM base AS builder
 COPY package*.json ./
-RUN npm ci --prefer-offline --no-audit --progress=false
+
+# نصب dependencies با تنظیمات بهینه
+RUN npm ci --prefer-offline --no-audit --progress=false --maxsockets 1
 
 # کپی کل پروژه
 COPY . .
 
+# Build با memory بسیار محدود و تنظیمات بهینه
+ENV NODE_OPTIONS="--max-old-space-size=1024 --max-semi-space-size=64"
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV CI=true
+
 # Build با memory محدود
-ENV NODE_OPTIONS="--max-old-space-size=1500"
-RUN npm run build
+RUN npm run build:memory-safe || npm run build
 
 # مرحله 4: Runner
 FROM base AS runner
