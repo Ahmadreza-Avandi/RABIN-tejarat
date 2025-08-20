@@ -3,7 +3,7 @@ import mysql from 'mysql2/promise';
 // Secure Database connection configuration
 const dbConfig = {
   host: process.env.DATABASE_HOST || 'mysql',
-  user: process.env.DATABASE_USER || 'crm_user',
+  user: process.env.DATABASE_USER || 'crm_app_user',
   password: process.env.DATABASE_PASSWORD || '1234',
   database: process.env.DATABASE_NAME || 'crm_system',
   timezone: '+00:00',

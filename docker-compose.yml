@@ -57,7 +57,7 @@ services:
     restart: unless-stopped
     command: --default-authentication-plugin=mysql_native_password --innodb-buffer-pool-size=256M --max-connections=100
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p1234"]
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${DATABASE_PASSWORD}_ROOT"]
       interval: 10s
       timeout: 5s
       retries: 5
