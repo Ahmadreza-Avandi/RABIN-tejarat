@@ -9,8 +9,9 @@ const dbConfig = {
   timezone: '+00:00',
   charset: 'utf8mb4',
   connectTimeout: 10000,
-  acquireTimeout: 10000,
-  timeout: 10000,
+  // Removed invalid options:
+  // acquireTimeout: 10000,
+  // timeout: 10000,
 };
 
 // Create connection pool for better performance
@@ -19,9 +20,6 @@ export const pool = mysql.createPool({
   waitForConnections: true,
   connectionLimit: 10,
   queueLimit: 0,
-  // Remove invalid options that cause warnings
-  // acquireTimeout: 60000,
-  // timeout: 60000,
 });
 
 // Test database connection
