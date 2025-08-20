@@ -45,9 +45,14 @@ docker-compose down --remove-orphans || true
 print_status "Setting up production environment..."
 if [ -f ".env.server" ]; then
     cp .env.server .env
-    print_success "Production environment configured"
+    print_success "Production environment configured from .env.server"
+elif [ -f ".env.server.template" ]; then
+    cp .env.server.template .env.server
+    cp .env.server .env
+    print_success "Production environment configured from template"
+    print_warning "Please review and update .env.server with your actual credentials"
 else
-    print_error ".env.server file not found!"
+    print_error "Neither .env.server nor .env.server.template found!"
     exit 1
 fi
 
