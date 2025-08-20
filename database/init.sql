@@ -8,7 +8,7 @@ CREATE DATABASE IF NOT EXISTS crm_system CHARACTER SET utf8mb4 COLLATE utf8mb4_u
 USE crm_system;
 
 -- Create application user with limited privileges
-CREATE USER IF NOT EXISTS 'crm_app_user'@'%' IDENTIFIED BY 'Cr@M_App_Us3r_2024!@#$%';
+CREATE USER IF NOT EXISTS 'crm_app_user'@'%' IDENTIFIED BY '1234';
 
 -- Grant only necessary privileges to application user
 GRANT SELECT, INSERT, UPDATE, DELETE, CREATE, ALTER, INDEX, DROP ON crm_system.* TO 'crm_app_user'@'%';
