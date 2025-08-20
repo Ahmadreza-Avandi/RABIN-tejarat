@@ -12,9 +12,9 @@ echo -e "${YELLOW}🔄 Applying all fixes and restarting services...${NC}"
 echo -e "${YELLOW}Step 1: Fixing database user...${NC}"
 ./fix-database.sh
 
-# 2. Push changes to repository
-echo -e "${YELLOW}Step 2: Pushing changes to repository...${NC}"
-./push-changes.sh
+# 2. Skip pushing changes to repository (requires git configuration)
+echo -e "${YELLOW}Step 2: Skipping repository push (requires git configuration)${NC}"
+# ./push-changes.sh
 
 # 3. Set up SSL certificates if needed
 echo -e "${YELLOW}Step 3: Checking SSL certificates...${NC}"
