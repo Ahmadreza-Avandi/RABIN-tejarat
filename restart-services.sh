@@ -7,6 +7,10 @@ NC='\033[0m' # No Color
 
 echo -e "${GREEN}🔄 Restarting CRM services...${NC}"
 
+# Test Nginx configuration
+echo -e "${YELLOW}Testing Nginx configuration...${NC}"
+docker-compose run --rm nginx nginx -t
+
 # Stop the containers
 echo -e "${YELLOW}Stopping containers...${NC}"
 docker-compose down
