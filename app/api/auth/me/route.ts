@@ -29,9 +29,9 @@ export async function GET(req: NextRequest) {
       const [user] = await executeQuery(`
         SELECT 
           id, name, email, role, phone, avatar,
-          created_at, last_login, is_active
+          created_at, last_login, status
         FROM users 
-        WHERE id = ? AND is_active = 1
+        WHERE id = ? AND status = 'active'
       `, [decoded.id]);
 
       if (!user) {
@@ -59,7 +59,7 @@ export async function GET(req: NextRequest) {
           avatar: user.avatar,
           created_at: user.created_at,
           last_login: user.last_login,
-          is_active: user.is_active
+          status: user.status
         }
       });
 

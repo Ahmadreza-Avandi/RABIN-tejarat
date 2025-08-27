@@ -7,7 +7,8 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { audioIntelligenceService } from '@/lib/audio-intelligence-service';
-import { Mic, MicOff, Volume2, VolumeX, Play, Square, Loader2, MessageCircle, BarChart3, TrendingUp, DollarSign, Calendar, Clock, Headphones, Settings, Activity, Users, Target, Zap } from 'lucide-react';
+import { sahabTTSV2 } from '@/lib/sahab-tts-v2';
+import { Mic, MicOff, Volume2, VolumeX, Play, Square, Loader2, MessageCircle, BarChart3, TrendingUp, DollarSign, Calendar, Clock, Headphones, Settings, Activity, Users, Target, Zap, AlertCircle, CheckCircle } from 'lucide-react';
 
 export default function AudioAnalysisPage() {
   const [isProcessing, setIsProcessing] = useState(false);
@@ -46,8 +47,18 @@ export default function AudioAnalysisPage() {
     voiceSpeed: 1,
     voiceVolume: 1,
     autoSpeak: true,
-    continuousListening: false
+    continuousListening: false,
+    preferredTTS: 'sahab' // 'sahab' or 'talkbot'
   });
+
+  // TTS Status
+  const [ttsStatus, setTtsStatus] = useState({
+    isLoading: false,
+    error: null as string | null,
+    currentService: 'sahab'
+  });
+
+  // Fixed speaker - always use speaker 3
 
   // Voice commands history
   const [commandHistory, setCommandHistory] = useState<Array<{
@@ -57,14 +68,34 @@ export default function AudioAnalysisPage() {
     success: boolean;
   }>>([]);
 
+  // TTS Request logs
+  const [ttsLogs, setTtsLogs] = useState<Array<{
+    timestamp: string;
+    text: string;
+    speaker: string;
+    status: 'loading' | 'success' | 'error';
+    error?: string;
+    duration?: number;
+  }>>([]);
+
   useEffect(() => {
     // Initialize system status
     const updateSystemStatus = () => {
       const status = audioIntelligenceService.getSystemStatus();
       setSystemStatus(status);
       setIsSpeaking(status.isSpeaking);
+
+      // Update TTS status from Sahab
+      if (status.sahabTTSStatus) {
+        setTtsStatus(prev => ({
+          ...prev,
+          isLoading: status.sahabTTSStatus.isLoading,
+          currentService: status.sahabTTSStatus.isSpeaking ? 'sahab' : prev.currentService
+        }));
+      }
     };
 
+    // Load available speakers
     updateSystemStatus();
 
     // Update status periodically
@@ -204,9 +235,61 @@ export default function AudioAnalysisPage() {
 
   const stopAllAudio = () => {
     audioIntelligenceService.stopAudioProcessing();
+    sahabTTSV2.stop();
     setIsProcessing(false);
     setIsListening(false);
     setIsSpeaking(false);
+    setTtsStatus(prev => ({ ...prev, isLoading: false, error: null }));
+  };
+
+  // Test new Sahab TTS API
+  const testSahabTTS = async () => {
+    const testText = 'سلام! این یک تست سیستم صوتی جدید ساهاب است. کیفیت صدا بسیار عالی است.';
+    const startTime = Date.now();
+
+    // Add log entry
+    const logEntry = {
+      timestamp: new Date().toLocaleString('fa-IR'),
+      text: testText,
+      speaker: '3',
+      status: 'loading' as const
+    };
+    setTtsLogs(prev => [logEntry, ...prev.slice(0, 9)]);
+
+    setTtsStatus(prev => ({ ...prev, isLoading: true, error: null, currentService: 'sahab' }));
+
+    try {
+      await sahabTTSV2.speak(testText, {
+        speaker: '3',
+        onLoadingStart: () => {
+          setTtsStatus(prev => ({ ...prev, isLoading: true }));
+        },
+        onLoadingEnd: () => {
+          setTtsStatus(prev => ({ ...prev, isLoading: false }));
+        },
+        onError: (error) => {
+          setTtsStatus(prev => ({ ...prev, error, isLoading: false }));
+          // Update log
+          setTtsLogs(prev => prev.map((log, index) =>
+            index === 0 ? { ...log, status: 'error' as const, error, duration: Date.now() - startTime } : log
+          ));
+        }
+      });
+
+      // Update log on success
+      setTtsLogs(prev => prev.map((log, index) =>
+        index === 0 ? { ...log, status: 'success' as const, duration: Date.now() - startTime } : log
+      ));
+
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'خطای نامشخص';
+      setTtsStatus(prev => ({ ...prev, error: errorMessage, isLoading: false }));
+
+      // Update log on error
+      setTtsLogs(prev => prev.map((log, index) =>
+        index === 0 ? { ...log, status: 'error' as const, error: errorMessage, duration: Date.now() - startTime } : log
+      ));
+    }
   };
 
   // Handle sales analysis based on selected time period
@@ -378,7 +461,7 @@ export default function AudioAnalysisPage() {
           <CardTitle className="text-lg">وضعیت سیستم</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
               <span className="text-sm">تشخیص گفتار:</span>
               <Badge variant={systemStatus?.speechRecognitionSupported ? "default" : "destructive"}>
@@ -394,12 +477,40 @@ export default function AudioAnalysisPage() {
             </div>
 
             <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+              <span className="text-sm">سرویس TTS:</span>
+              <Badge variant={ttsStatus.currentService === 'sahab' ? "default" : "secondary"}>
+                {ttsStatus.currentService === 'sahab' ? 'ساهاب (جدید)' : 'TalkBot'}
+              </Badge>
+            </div>
+
+            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
               <span className="text-sm">در حال پردازش:</span>
-              <Badge variant={systemStatus?.isProcessing ? "secondary" : "outline"}>
-                {systemStatus?.isProcessing ? 'بله' : 'خیر'}
+              <Badge variant={systemStatus?.isProcessing || ttsStatus.isLoading ? "secondary" : "outline"}>
+                {systemStatus?.isProcessing || ttsStatus.isLoading ? 'بله' : 'خیر'}
               </Badge>
             </div>
           </div>
+
+          {/* TTS Status Details */}
+          {(ttsStatus.isLoading || ttsStatus.error) && (
+            <div className="mt-4 p-3 rounded-lg border">
+              {ttsStatus.isLoading && (
+                <div className="flex items-center gap-2 text-blue-600">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm">در حال ارسال متن به سرویس صوتی...</span>
+                </div>
+              )}
+
+              {ttsStatus.error && (
+                <div className="flex items-center gap-2 text-red-600">
+                  <AlertCircle className="h-4 w-4" />
+                  <span className="text-sm">خطا در سرویس صوتی: {ttsStatus.error}</span>
+                </div>
+              )}
+            </div>
+          )}
+
+
         </CardContent>
       </Card>
 
@@ -443,16 +554,33 @@ export default function AudioAnalysisPage() {
               </p>
             </div>
 
-            {/* Stop All Button */}
-            {(isProcessing || isListening || isSpeaking) && (
+            {/* Control Buttons */}
+            <div className="flex gap-3 mt-4">
+              {/* Stop All Button */}
+              {(isProcessing || isListening || isSpeaking || ttsStatus.isLoading) && (
+                <Button
+                  onClick={stopAllAudio}
+                  variant="destructive"
+                >
+                  توقف همه
+                </Button>
+              )}
+
+              {/* Test Sahab TTS Button */}
               <Button
-                onClick={stopAllAudio}
-                variant="destructive"
-                className="mt-2"
+                onClick={testSahabTTS}
+                variant="outline"
+                disabled={ttsStatus.isLoading || isProcessing}
+                className="flex items-center gap-2"
               >
-                توقف همه
+                {ttsStatus.isLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Volume2 className="h-4 w-4" />
+                )}
+                تست API جدید
               </Button>
-            )}
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -871,6 +999,76 @@ export default function AudioAnalysisPage() {
                     </CardContent>
                   </Card>
                 )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* TTS Request Logs */}
+      {ttsLogs.length > 0 && (
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Activity className="h-5 w-5" />
+              لاگ درخواست‌های صوتی
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3 max-h-96 overflow-y-auto">
+              {ttsLogs.map((log, index) => (
+                <div key={index} className="flex items-start gap-3 p-3 rounded-lg border bg-gray-50">
+                  <div className="flex-shrink-0 mt-1">
+                    {log.status === 'loading' && <Loader2 className="h-4 w-4 animate-spin text-blue-500" />}
+                    {log.status === 'success' && <CheckCircle className="h-4 w-4 text-green-500" />}
+                    {log.status === 'error' && <AlertCircle className="h-4 w-4 text-red-500" />}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-sm font-medium text-gray-900">
+                        صدای {log.speaker}
+                      </span>
+                      <span className="text-xs text-gray-500">{log.timestamp}</span>
+                    </div>
+
+                    <p className="text-sm text-gray-700 mb-2 line-clamp-2">
+                      {log.text.length > 100 ? log.text.substring(0, 100) + '...' : log.text}
+                    </p>
+
+                    <div className="flex items-center gap-4 text-xs text-gray-500">
+                      <span className={`px-2 py-1 rounded-full ${log.status === 'success' ? 'bg-green-100 text-green-700' :
+                        log.status === 'error' ? 'bg-red-100 text-red-700' :
+                          'bg-blue-100 text-blue-700'
+                        }`}>
+                        {log.status === 'success' ? 'موفق' :
+                          log.status === 'error' ? 'خطا' : 'در حال پردازش'}
+                      </span>
+
+                      {log.duration && (
+                        <span>{log.duration}ms</span>
+                      )}
+
+                      {log.error && (
+                        <span className="text-red-600 truncate max-w-xs">
+                          {log.error}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {ttsLogs.length >= 10 && (
+              <div className="mt-3 text-center">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setTtsLogs([])}
+                >
+                  پاک کردن لاگ‌ها
+                </Button>
               </div>
             )}
           </CardContent>

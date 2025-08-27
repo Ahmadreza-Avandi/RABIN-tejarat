@@ -1,6 +1,7 @@
 // Audio Intelligence Service - Complete voice interaction system
 import { enhancedPersianSpeechRecognition } from './enhanced-persian-speech-recognition';
 import { talkBotTTS } from './talkbot-tts';
+import { sahabTTSV2 } from './sahab-tts-v2';
 
 export interface VoiceCommand {
     text: string;
@@ -783,23 +784,51 @@ export class AudioIntelligenceService {
         }
     }
 
-    // Speak the response using TalkBot TTS
+    // Speak the response using Sahab TTS (new API)
     private async speakResponse(text: string): Promise<void> {
         try {
             // Set speaking state
             this.isSpeaking = true;
 
-            // Speak the response
-            await talkBotTTS.speak(text, { server: 'farsi', sound: '3' });
-        } catch (error) {
-            console.error('خطا در خواندن پاسخ:', error);
+            console.log('🎵 Using Sahab TTS for response...');
 
-            // Don't throw error for TTS issues - just log them
-            // The main interaction should continue even if TTS fails
-            console.warn('TTS failed but continuing with interaction');
+            // Use new Sahab TTS API
+            await sahabTTSV2.speakClean(text, {
+                speaker: '3',
+                onLoadingStart: () => {
+                    console.log('🔄 شروع بارگذاری صدا...');
+                },
+                onLoadingEnd: () => {
+                    console.log('✅ بارگذاری صدا تکمیل شد');
+                },
+                onError: (error) => {
+                    console.error('❌ خطا در TTS:', error);
+                    // Fallback to TalkBot if Sahab fails
+                    this.fallbackToTalkBot(text);
+                }
+            });
+
+        } catch (error) {
+            console.error('خطا در خواندن پاسخ با Sahab TTS:', error);
+
+            // Fallback to TalkBot TTS
+            await this.fallbackToTalkBot(text);
         } finally {
             // Reset speaking state
             this.isSpeaking = false;
+        }
+    }
+
+    // Fallback to TalkBot TTS if Sahab fails
+    private async fallbackToTalkBot(text: string): Promise<void> {
+        try {
+            console.log('🔄 Falling back to TalkBot TTS...');
+            await talkBotTTS.speak(text, { server: 'farsi', sound: '3' });
+        } catch (fallbackError) {
+            console.error('خطا در fallback TTS:', fallbackError);
+            // Don't throw error for TTS issues - just log them
+            // The main interaction should continue even if TTS fails
+            console.warn('Both TTS services failed but continuing with interaction');
         }
     }
 
@@ -807,6 +836,7 @@ export class AudioIntelligenceService {
     stopAudioProcessing(): void {
         enhancedPersianSpeechRecognition.stopListening();
         talkBotTTS.stop();
+        sahabTTSV2.stop(); // Stop new Sahab TTS as well
         this.isProcessing = false;
         this.currentSession = null;
         console.log('⏹️ پردازش صوتی متوقف شد');
@@ -820,21 +850,25 @@ export class AudioIntelligenceService {
         ttsSupported: boolean;
         currentSession: string | null;
         voiceInfo: any;
+        sahabTTSStatus: any;
     } {
+        const sahabStatus = sahabTTSV2.getStatus();
+
         return {
             isProcessing: this.isProcessing,
-            isSpeaking: this.isSpeaking,
+            isSpeaking: this.isSpeaking || sahabStatus.isSpeaking,
             speechRecognitionSupported: enhancedPersianSpeechRecognition.isSupported(),
-            ttsSupported: talkBotTTS.isSupported(),
+            ttsSupported: talkBotTTS.isSupported() || sahabTTSV2.isSupported(),
             currentSession: this.currentSession,
             voiceInfo: {
-                total: 1,
-                persian: 1,
+                total: 2,
+                persian: 2,
                 arabic: 0,
                 female: 1,
-                bestVoice: 'TalkBot Farsi Voice',
+                bestVoice: 'Sahab TTS (Primary) + TalkBot (Fallback)',
                 hasGoodVoice: true
-            }
+            },
+            sahabTTSStatus: sahabStatus
         };
     }
 

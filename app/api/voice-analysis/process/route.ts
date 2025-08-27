@@ -38,6 +38,23 @@ export async function POST(req: NextRequest) {
             );
         }
 
+        // Get user info to check role
+        const userInfo = await executeQuery(`
+            SELECT id, name, role, email 
+            FROM users 
+            WHERE id = ? AND status = 'active'
+        `, [userId]);
+
+        if (userInfo.length === 0) {
+            return NextResponse.json(
+                { success: false, message: 'کاربر یافت نشد' },
+                { status: 404 }
+            );
+        }
+
+        const currentUser = userInfo[0];
+        console.log('🔍 Current user:', currentUser.name, 'Role:', currentUser.role);
+
         const body = await req.json();
         const { text, employeeName } = body;
 
@@ -49,13 +66,23 @@ export async function POST(req: NextRequest) {
         }
 
         // Search for employee by name
-        const employees = await executeQuery(`
+        // Managers can see all employees, regular users can only see themselves
+        let employeeQuery = `
             SELECT id, name, role 
             FROM users 
             WHERE name LIKE ? AND status = 'active'
-            ORDER BY name
-            LIMIT 5
-        `, [`%${employeeName}%`]);
+        `;
+        let queryParams = [`%${employeeName}%`];
+
+        // If user is not manager/admin, they can only see their own reports
+        if (currentUser.role !== 'manager' && currentUser.role !== 'admin') {
+            employeeQuery += ` AND id = ?`;
+            queryParams.push(currentUser.id);
+        }
+
+        employeeQuery += ` ORDER BY name LIMIT 5`;
+
+        const employees = await executeQuery(employeeQuery, queryParams);
 
         if (employees.length === 0) {
             return NextResponse.json({
