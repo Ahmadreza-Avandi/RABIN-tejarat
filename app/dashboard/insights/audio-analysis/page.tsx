@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { audioIntelligenceService } from '@/lib/audio-intelligence-service';
 import { advancedSpeechToText } from '@/lib/advanced-speech-to-text';
+import { sahabSpeechRecognition } from '@/lib/sahab-speech-recognition';
 import { sahabTTSV2 } from '@/lib/sahab-tts-v2';
 import { enhancedPersianSpeechRecognition } from '@/lib/enhanced-persian-speech-recognition';
 import { Mic, MicOff, Volume2, VolumeX, Play, Square, Loader2, MessageCircle, BarChart3, TrendingUp, DollarSign, Calendar, Clock, Headphones, Settings, Activity, Users, Target, Zap, AlertCircle, CheckCircle } from 'lucide-react';
@@ -296,31 +297,32 @@ export default function AudioAnalysisPage() {
   };
 
   // Test advanced speech-to-text
-  const testAdvancedSpeech = async () => {
+  // Test Sahab speech recognition
+  const testSahabSpeech = async () => {
     try {
-      setCurrentTask('تست سیستم ضبط پیشرفته...');
+      setCurrentTask('تست سیستم تشخیص گفتار ساهاب...');
       setIsProcessing(true);
 
-      console.log('🎤 Testing advanced speech-to-text...');
+      console.log('🎤 Testing Sahab speech recognition...');
 
       // Test if supported
-      if (!advancedSpeechToText.isSupported()) {
-        setAiResponse('سیستم ضبط پیشرفته در این مرورگر پشتیبانی نمی‌شود.');
+      if (!sahabSpeechRecognition.isSupported()) {
+        setAiResponse('سیستم ضبط در این مرورگر پشتیبانی نمی‌شود.');
         return;
       }
 
-      setCurrentTask('شروع ضبط... (5 ثانیه)');
+      setCurrentTask('شروع ضبط... (5 ثانیه صحبت کنید)');
 
-      // Record and convert (will auto-stop after 5 seconds in demo mode)
-      const result = await advancedSpeechToText.recordAndConvert(5000);
+      // Record and convert using Sahab API
+      const result = await sahabSpeechRecognition.recordAndConvert(5000);
 
       setTranscript(result);
-      setAiResponse(`✅ تست موفق! متن تشخیص داده شده: "${result}"`);
+      setAiResponse(`✅ تست ساهاب موفق! متن تشخیص داده شده: "${result}"`);
 
     } catch (error) {
-      console.error('خطا در تست ضبط پیشرفته:', error);
+      console.error('خطا در تست ساهاب:', error);
       const errorMessage = error instanceof Error ? error.message : 'خطای نامشخص';
-      setAiResponse(`❌ خطا در تست: ${errorMessage}`);
+      setAiResponse(`❌ خطا در تست ساهاب: ${errorMessage}`);
     } finally {
       setIsProcessing(false);
       setCurrentTask('');
@@ -562,25 +564,32 @@ export default function AudioAnalysisPage() {
             </div>
 
             <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-              <span className="text-sm">ضبط پیشرفته:</span>
-              <Badge variant={systemStatus?.advancedSpeechStatus?.isSupported ? "default" : "destructive"}>
-                {systemStatus?.advancedSpeechStatus?.isSupported ? 'فعال' : 'غیرفعال'}
+              <span className="text-sm">ساهاب (اصلی):</span>
+              <Badge variant={systemStatus?.sahabSpeechStatus?.isSupported ? "default" : "destructive"}>
+                {systemStatus?.sahabSpeechStatus?.isSupported ? 'فعال' : 'غیرفعال'}
               </Badge>
             </div>
 
             <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
               <span className="text-sm">در حال پردازش:</span>
-              <Badge variant={systemStatus?.isProcessing || ttsStatus.isLoading || systemStatus?.advancedSpeechStatus?.isRecording ? "secondary" : "outline"}>
-                {systemStatus?.isProcessing || ttsStatus.isLoading || systemStatus?.advancedSpeechStatus?.isRecording ? 'بله' : 'خیر'}
+              <Badge variant={systemStatus?.isProcessing || ttsStatus.isLoading || systemStatus?.sahabSpeechStatus?.isRecording ? "secondary" : "outline"}>
+                {systemStatus?.isProcessing || ttsStatus.isLoading || systemStatus?.sahabSpeechStatus?.isRecording ? 'بله' : 'خیر'}
               </Badge>
             </div>
           </div>
 
-          {/* TTS Status Details */}
-          {(ttsStatus.isLoading || ttsStatus.error) && (
+          {/* Status Details */}
+          {(ttsStatus.isLoading || ttsStatus.error || systemStatus?.sahabSpeechStatus?.isRecording) && (
             <div className="mt-4 p-3 rounded-lg border">
+              {systemStatus?.sahabSpeechStatus?.isRecording && (
+                <div className="flex items-center gap-2 text-green-600 mb-2">
+                  <Mic className="h-4 w-4 animate-pulse" />
+                  <span className="text-sm">در حال ضبط صدا با ساهاب...</span>
+                </div>
+              )}
+
               {ttsStatus.isLoading && (
-                <div className="flex items-center gap-2 text-blue-600">
+                <div className="flex items-center gap-2 text-blue-600 mb-2">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   <span className="text-sm">در حال ارسال متن به سرویس صوتی...</span>
                 </div>
@@ -670,19 +679,19 @@ export default function AudioAnalysisPage() {
                 تست TTS
               </Button>
 
-              {/* Test Advanced Speech-to-Text Button */}
+              {/* Test Sahab Speech Recognition Button */}
               <Button
-                onClick={testAdvancedSpeech}
+                onClick={testSahabSpeech}
                 variant="outline"
-                disabled={isProcessing || systemStatus?.advancedSpeechStatus?.isRecording}
+                disabled={isProcessing || systemStatus?.sahabSpeechStatus?.isRecording}
                 className="flex items-center gap-2"
               >
-                {systemStatus?.advancedSpeechStatus?.isRecording ? (
+                {systemStatus?.sahabSpeechStatus?.isRecording ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Mic className="h-4 w-4" />
                 )}
-                تست ضبط پیشرفته
+                تست ساهاب
               </Button>
             </div>
           </div>
@@ -854,11 +863,11 @@ export default function AudioAnalysisPage() {
                 نکات مهم:
               </h4>
               <ul className="text-sm text-blue-700 space-y-1">
-                <li>• سیستم از دو روش تشخیص گفتار استفاده می‌کند</li>
-                <li>• روش اول: ضبط و ارسال به سرور (دقت بالاتر)</li>
-                <li>• روش دوم: تشخیص آنلاین مرورگر (سریع‌تر)</li>
+                <li>• سیستم از API ساهاب برای تشخیص گفتار استفاده می‌کند</li>
+                <li>• دقت بالا در تشخیص زبان فارسی</li>
+                <li>• پردازش آنلاین با کیفیت عالی</li>
                 <li>• برای بهترین نتیجه، در محیط آرام صحبت کنید</li>
-                <li>• می‌توانید فارسی یا انگلیسی صحبت کنید</li>
+                <li>• فقط زبان فارسی پشتیبانی می‌شود</li>
                 <li>• مدیران می‌توانند گزارشات همه همکاران را ببینند</li>
                 <li>• "خودم" نام یکی از همکاران است</li>
               </ul>
