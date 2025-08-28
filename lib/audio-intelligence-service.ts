@@ -24,6 +24,32 @@ export class AudioIntelligenceService {
 
     constructor() {
         console.log('🎯 Audio Intelligence Service initialized');
+        this.checkEnvironmentCompatibility();
+    }
+
+    private checkEnvironmentCompatibility() {
+        // Check if we're in a secure context (HTTPS)
+        if (typeof window !== 'undefined' && !window.isSecureContext) {
+            console.warn('⚠️ Web Speech API requires a secure context (HTTPS)');
+        }
+
+        // Check if audio is supported
+        if (typeof window !== 'undefined') {
+            // Test audio playback
+            const audio = new Audio();
+            audio.oncanplaythrough = () => {
+                console.log('✅ Audio playback supported');
+            };
+            audio.onerror = () => {
+                console.warn('⚠️ Audio playback not supported');
+            };
+            audio.src = 'data:audio/wav;base64,UklGRngAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAAABmYWN0BAAAAAAAAABkYXRhAAAAAA==';
+        }
+
+        // Check if Web Speech API is supported
+        if (typeof window !== 'undefined' && !('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+            console.error('❌ Web Speech API is not supported in this environment');
+        }
     }
 
     // Helper method to find authentication token
@@ -139,29 +165,86 @@ export class AudioIntelligenceService {
         }
     }
 
-    // Listen to user voice input
-    // Listen to user voice input (simple): stop any TTS first
+    // Listen to user voice input with enhanced error handling and device checks
     private async listenToUser(): Promise<string> {
         try {
+            // First check if we have the required APIs
+            if (typeof window === 'undefined') {
+                throw new Error('صفحه هنوز به طور کامل بارگذاری نشده است');
+            }
+
+            if (!window.isSecureContext) {
+                throw new Error('این قابلیت نیاز به یک محیط امن (HTTPS) دارد');
+            }
+
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                throw new Error('دسترسی به میکروفون در این مرورگر یا محیط پشتیبانی نمی‌شود');
+            }
+
+            // Test audio output first
+            const audioTest = new Audio();
+            try {
+                await audioTest.play();
+                audioTest.pause();
+            } catch (e) {
+                console.warn('هشدار: تست پخش صدا ناموفق بود', e);
+            }
+
             // Ensure any ongoing TTS is stopped to avoid feedback
             try {
                 talkBotTTS.stop();
-            } catch (e) { }
+            } catch (e) {
+                console.warn('خطا در توقف TalkBot TTS:', e);
+            }
             try {
                 sahabTTSV2.stop();
-            } catch (e) { }
+            } catch (e) {
+                console.warn('خطا در توقف Sahab TTS:', e);
+            }
 
-            // Test microphone first
-            const microphoneOk = await enhancedPersianSpeechRecognition.testMicrophone();
+            // Test microphone with timeout
+            const microphonePromise = enhancedPersianSpeechRecognition.testMicrophone();
+            const timeoutPromise = new Promise((_, reject) => {
+                setTimeout(() => reject(new Error('تست میکروفون با تایم‌اوت مواجه شد')), 5000);
+            });
+
+            const microphoneOk = await Promise.race([microphonePromise, timeoutPromise]);
+            
             if (!microphoneOk) {
                 console.warn('میکروفون در دسترس نیست، استفاده از ورودی دستی');
                 return await enhancedPersianSpeechRecognition.getManualInput();
             }
 
-            // Start listening
-            return await enhancedPersianSpeechRecognition.startListening();
+            // Start listening with timeout
+            const recognitionPromise = enhancedPersianSpeechRecognition.startListening();
+            const recognitionTimeout = new Promise<string>((_, reject) => {
+                setTimeout(() => reject(new Error('تشخیص گفتار با تایم‌اوت مواجه شد')), 15000);
+            });
+
+            return await Promise.race([recognitionPromise, recognitionTimeout]);
+
         } catch (error) {
             console.error('خطا در تشخیص گفتار:', error);
+            
+            // Log additional diagnostic information
+            if (typeof window !== 'undefined') {
+                console.log('وضعیت محیط:', {
+                    isSecureContext: window.isSecureContext,
+                    hasMediaDevices: !!navigator.mediaDevices,
+                    hasGetUserMedia: !!navigator.mediaDevices?.getUserMedia,
+                    userAgent: navigator.userAgent
+                });
+            }
+
+            // Check specific error types
+            if (error instanceof Error) {
+                if (error.message.includes('permission')) {
+                    throw new Error('لطفاً دسترسی به میکروفون را تایید کنید');
+                }
+                if (error.message.includes('timed out')) {
+                    throw new Error('زمان تشخیص گفتار به پایان رسید، لطفاً دوباره تلاش کنید');
+                }
+            }
 
             // Fallback to manual input
             console.log('استفاده از ورودی دستی به عنوان fallback');

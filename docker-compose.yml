@@ -7,6 +7,13 @@ services:
     container_name: crm-nextjs
     env_file:
       - .env
+    devices:
+      - "/dev/snd:/dev/snd"
+    volumes:
+      - "/tmp/.X11-unix:/tmp/.X11-unix"
+      - "$HOME/.config/pulse:/home/nextjs/.config/pulse"
+    group_add:
+      - audio
     environment:
       # All environment variables are loaded from .env file
       # Override specific Docker-related variables if needed

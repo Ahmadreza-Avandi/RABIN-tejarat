@@ -1,6 +1,6 @@
 # مرحله 1: Base image
 FROM node:18-alpine AS base
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat pulseaudio pulseaudio-utils alsa-utils alsa-lib
 WORKDIR /app
 
 # مرحله 2: Dependencies
