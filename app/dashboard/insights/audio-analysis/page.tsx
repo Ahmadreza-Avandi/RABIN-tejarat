@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { audioIntelligenceService } from '@/lib/audio-intelligence-service';
 import { sahabTTSV2 } from '@/lib/sahab-tts-v2';
+import { enhancedPersianSpeechRecognition } from '@/lib/enhanced-persian-speech-recognition';
 import { Mic, MicOff, Volume2, VolumeX, Play, Square, Loader2, MessageCircle, BarChart3, TrendingUp, DollarSign, Calendar, Clock, Headphones, Settings, Activity, Users, Target, Zap, AlertCircle, CheckCircle } from 'lucide-react';
 
 export default function AudioAnalysisPage() {
@@ -176,6 +177,57 @@ export default function AudioAnalysisPage() {
         setCurrentTask('');
       }, 1000);
     }
+  };
+
+  // --- Push-to-talk handlers (start on press, stop on release) ---
+  const handlePushStart = async () => {
+    if (!systemStatus?.speechRecognitionSupported) return;
+    // Stop any TTS first
+    try { sahabTTSV2.stop(); } catch (e) { }
+
+    setIsProcessing(true);
+    setIsListening(true);
+    setTranscript('');
+    setAiResponse('');
+    setCurrentTask('در حال گوش دادن...');
+
+    // Provide interim updates from recognition
+    enhancedPersianSpeechRecognition.onInterim((text: string) => {
+      setTranscript(text);
+    });
+
+    try {
+      const final = await audioIntelligenceService.listenWithInterim((t) => setTranscript(t));
+      setTranscript(final);
+
+      // Use internal analyze/process functions via any cast (safe here)
+      const command = (audioIntelligenceService as any).analyzeVoiceCommand(final);
+      const response = await (audioIntelligenceService as any).processCommand(command);
+
+      setAiResponse(response.text);
+      const historyEntry = {
+        timestamp: new Date().toLocaleString('fa-IR'),
+        command: final,
+        response: response.text,
+        success: true
+      };
+      setCommandHistory(prev => [historyEntry, ...prev.slice(0, 9)]);
+      await handleVoiceTimeSelection(final);
+    } catch (error) {
+      console.error('Push-to-talk error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'خطای تشخیص';
+      setAiResponse(`خطا: ${errorMessage}`);
+    } finally {
+      setIsProcessing(false);
+      setIsListening(false);
+      setCurrentTask('');
+    }
+  };
+
+  const handlePushEnd = () => {
+    try {
+      enhancedPersianSpeechRecognition.stopListening();
+    } catch (e) { }
   };
 
   // Handle voice-controlled time selection
@@ -519,6 +571,10 @@ export default function AudioAnalysisPage() {
             {/* Primary Action Button */}
             <Button
               onClick={handleVoiceInteraction}
+              onMouseDown={() => handlePushStart()}
+              onMouseUp={() => handlePushEnd()}
+              onTouchStart={(e) => { e.preventDefault(); handlePushStart(); }}
+              onTouchEnd={(e) => { e.preventDefault(); handlePushEnd(); }}
               disabled={!systemStatus?.speechRecognitionSupported || !systemStatus?.ttsSupported}
               className={`w-24 h-24 rounded-full transition-all duration-300 ${isProcessing
                 ? 'bg-red-500 hover:bg-red-600 animate-pulse'

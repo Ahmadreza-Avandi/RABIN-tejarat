@@ -140,8 +140,17 @@ export class AudioIntelligenceService {
     }
 
     // Listen to user voice input
+    // Listen to user voice input (simple): stop any TTS first
     private async listenToUser(): Promise<string> {
         try {
+            // Ensure any ongoing TTS is stopped to avoid feedback
+            try {
+                talkBotTTS.stop();
+            } catch (e) { }
+            try {
+                sahabTTSV2.stop();
+            } catch (e) { }
+
             // Test microphone first
             const microphoneOk = await enhancedPersianSpeechRecognition.testMicrophone();
             if (!microphoneOk) {
@@ -156,6 +165,39 @@ export class AudioIntelligenceService {
 
             // Fallback to manual input
             console.log('استفاده از ورودی دستی به عنوان fallback');
+            return await enhancedPersianSpeechRecognition.getManualInput();
+        }
+    }
+
+    // Listen to user and provide interim updates via callback
+    async listenWithInterim(onInterim: (text: string) => void): Promise<string> {
+        try {
+            // Stop any TTS to avoid feedback
+            try { talkBotTTS.stop(); } catch (e) { }
+            try { sahabTTSV2.stop(); } catch (e) { }
+
+            const microphoneOk = await enhancedPersianSpeechRecognition.testMicrophone();
+            if (!microphoneOk) {
+                console.warn('میکروفون در دسترس نیست، استفاده از ورودی دستی');
+                return await enhancedPersianSpeechRecognition.getManualInput();
+            }
+
+            // Subscribe interim events
+            enhancedPersianSpeechRecognition.onInterim((text: string) => {
+                try {
+                    onInterim(text);
+                } catch (e) {
+                    console.error('خطا در onInterim handler:', e);
+                }
+            });
+
+            // Also notify start/end if needed
+            enhancedPersianSpeechRecognition.onStart(() => { this.isProcessing = true; });
+            enhancedPersianSpeechRecognition.onEnd(() => { /* noop */ });
+
+            return await enhancedPersianSpeechRecognition.startListening();
+        } catch (error) {
+            console.error('خطا در تشخیص گفتار با interim:', error);
             return await enhancedPersianSpeechRecognition.getManualInput();
         }
     }

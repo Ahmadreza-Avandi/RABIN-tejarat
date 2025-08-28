@@ -4,6 +4,12 @@ export class EnhancedPersianSpeechRecognition {
     private isListening = false;
     private retryCount = 0;
     private maxRetries = 3;
+    // Optional callbacks
+    private onInterimCallback: ((text: string) => void) | null = null;
+    private onStartCallback: (() => void) | null = null;
+    private onEndCallback: (() => void) | null = null;
+    private silenceTimer: any = null;
+    private silenceTimeoutMs = 900;
 
     constructor() {
         this.initialize();
@@ -27,9 +33,10 @@ export class EnhancedPersianSpeechRecognition {
         if (!this.recognition) return;
 
         // Enhanced configuration for Persian
-        this.recognition.continuous = false;
+        // Use continuous to allow longer speech segments but rely on silence timeout
+        this.recognition.continuous = true;
         this.recognition.interimResults = true; // Enable interim results for better UX
-        this.recognition.maxAlternatives = 3; // Get multiple alternatives
+        this.recognition.maxAlternatives = 1; // Keep single best alternative for clarity
 
         // Try Persian first, then fallback languages
         this.recognition.lang = 'fa-IR';
@@ -62,54 +69,69 @@ export class EnhancedPersianSpeechRecognition {
             let finalTranscript = '';
             let interimTranscript = '';
 
-            // Set timeout for speech recognition (30 seconds)
-            const timeout = setTimeout(() => {
+            // Global longer timeout as a safety (30s)
+            const globalTimeout = setTimeout(() => {
                 if (this.isListening) {
-                    this.recognition.stop();
+                    try { this.recognition.stop(); } catch (e) { }
                     this.isListening = false;
                     reject(new Error('زمان تشخیص گفتار به پایان رسید. لطفاً دوباره تلاش کنید.'));
                 }
             }, 30000);
 
+            const resetSilenceTimer = () => {
+                if (this.silenceTimer) clearTimeout(this.silenceTimer);
+                this.silenceTimer = setTimeout(() => {
+                    // Consider speech ended after short silence
+                    if (this.isListening) {
+                        try { this.recognition.stop(); } catch (e) { }
+                    }
+                }, this.silenceTimeoutMs);
+            };
+
             this.recognition.onstart = () => {
                 console.log('🎤 شروع تشخیص گفتار فارسی');
                 this.isListening = true;
+                if (this.onStartCallback) this.onStartCallback();
+                resetSilenceTimer();
             };
 
             this.recognition.onresult = (event: any) => {
-                finalTranscript = '';
                 interimTranscript = '';
 
-                // Process all results
                 for (let i = event.resultIndex; i < event.results.length; i++) {
                     const transcript = event.results[i][0].transcript;
 
                     if (event.results[i].isFinal) {
-                        finalTranscript += transcript;
+                        finalTranscript += transcript + ' ';
                     } else {
-                        interimTranscript += transcript;
+                        interimTranscript += transcript + ' ';
                     }
                 }
 
-                // Clean up the transcript
-                const cleanedTranscript = this.cleanupPersianText(finalTranscript || interimTranscript);
+                // Provide interim updates via callback
+                const cleanedInterim = this.cleanupPersianText(interimTranscript || finalTranscript);
+                if (this.onInterimCallback) this.onInterimCallback(cleanedInterim);
 
-                console.log('🎤 متن تشخیص داده شده:', cleanedTranscript);
+                // Reset silence timer because we received audio
+                resetSilenceTimer();
 
-                // If we have a final result, resolve
-                if (finalTranscript) {
-                    clearTimeout(timeout);
+                // If there is a final result, resolve
+                if (finalTranscript.trim()) {
+                    clearTimeout(this.silenceTimer);
+                    clearTimeout(globalTimeout);
                     this.isListening = false;
-                    resolve(cleanedTranscript);
+                    const cleaned = this.cleanupPersianText(finalTranscript);
+                    if (this.onEndCallback) this.onEndCallback();
+                    resolve(cleaned);
                 }
             };
 
             this.recognition.onerror = (event: any) => {
                 console.error('🎤 خطا در تشخیص گفتار:', event.error);
-                clearTimeout(timeout);
+                clearTimeout(this.silenceTimer);
+                clearTimeout(globalTimeout);
                 this.isListening = false;
 
-                // Handle different types of errors
                 switch (event.error) {
                     case 'network':
                         if (this.retryCount < this.maxRetries) {
@@ -123,7 +145,7 @@ export class EnhancedPersianSpeechRecognition {
                                     console.error('خطا در تلاش مجدد:', retryError);
                                     reject(new Error('خطا در تلاش مجدد اتصال'));
                                 }
-                            }, 2000); // Increased delay
+                            }, 2000);
                             return;
                         }
                         reject(new Error('خطا در اتصال به سرویس تشخیص گفتار. لطفاً اتصال اینترنت خود را بررسی کنید.'));
@@ -142,7 +164,6 @@ export class EnhancedPersianSpeechRecognition {
                         break;
 
                     case 'language-not-supported':
-                        // Try with alternative language settings
                         this.tryAlternativeLanguage()
                             .then(resolve)
                             .catch(reject);
@@ -155,8 +176,15 @@ export class EnhancedPersianSpeechRecognition {
 
             this.recognition.onend = () => {
                 console.log('🎤 پایان تشخیص گفتار');
-                clearTimeout(timeout);
+                clearTimeout(this.silenceTimer);
+                clearTimeout(globalTimeout);
                 this.isListening = false;
+                if (!finalTranscript.trim()) {
+                    // If no final transcript, reject to fallback
+                    reject(new Error('هیچ متنی ثبت نشد'));
+                    return;
+                }
+                // otherwise onresult resolved earlier
             };
 
             // Start recognition
@@ -167,6 +195,19 @@ export class EnhancedPersianSpeechRecognition {
                 reject(new Error('خطا در شروع تشخیص گفتار'));
             }
         });
+    }
+
+    // Allow consumers to receive interim transcript updates
+    onInterim(callback: (text: string) => void) {
+        this.onInterimCallback = callback;
+    }
+
+    onStart(callback: () => void) {
+        this.onStartCallback = callback;
+    }
+
+    onEnd(callback: () => void) {
+        this.onEndCallback = callback;
     }
 
     // Try alternative language settings if Persian fails
