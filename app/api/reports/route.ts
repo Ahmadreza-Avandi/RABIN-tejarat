@@ -11,7 +11,7 @@ const internalNotificationSystem = require('@/lib/notification-system.js');
 // GET /api/reports - Get daily reports
 export async function GET(req: NextRequest) {
     try {
-      0   // Get token from cookie or Authorization header
+        // Get token from cookie or Authorization header
         const token = req.cookies.get('auth-token')?.value ||
             req.headers.get('authorization')?.replace('Bearer ', '');
 
@@ -26,7 +26,7 @@ export async function GET(req: NextRequest) {
         if (!userId) {
             return NextResponse.json(
                 { success: false, message: 'توکن نامعتبر است' },
-                { status: 401 }    
+                { status: 401 }
             );
         }
 
@@ -49,8 +49,11 @@ export async function GET(req: NextRequest) {
         const date = searchParams.get('date') || '';
         const user_id = searchParams.get('user_id') || '';
 
-        // Check if user is manager/CEO
-        const isManager = ['ceo', 'مدیر', 'sales_manager', 'مدیر فروش'].includes(user.role);
+        // Check if user is manager/CEO - more comprehensive check
+        const isManager = [
+            'ceo', 'مدیر', 'sales_manager', 'مدیر فروش', 'admin', 'manager',
+            'supervisor', 'team_lead', 'مدیر عامل', 'مدیر کل', 'سرپرست'
+        ].some(role => user.role?.toLowerCase().includes(role.toLowerCase()));
 
         let whereClause = 'WHERE 1=1';
         const params: any[] = [];

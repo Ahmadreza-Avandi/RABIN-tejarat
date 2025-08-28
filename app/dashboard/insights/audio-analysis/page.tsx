@@ -476,12 +476,7 @@ export default function AudioAnalysisPage() {
               </Badge>
             </div>
 
-            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
-              <span className="text-sm">سرویس TTS:</span>
-              <Badge variant={ttsStatus.currentService === 'sahab' ? "default" : "secondary"}>
-                {ttsStatus.currentService === 'sahab' ? 'ساهاب (جدید)' : 'TalkBot'}
-              </Badge>
-            </div>
+
 
             <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
               <span className="text-sm">در حال پردازش:</span>
@@ -643,13 +638,16 @@ export default function AudioAnalysisPage() {
           </CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-6">
             <div>
               <h3 className="font-medium mb-3 text-gray-700 flex items-center gap-2">
                 <Users className="h-4 w-4" />
                 گزارشات همکاران:
               </h3>
               <ul className="space-y-2 text-sm">
+                <li className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">گزارش خودم</Badge>
+                </li>
                 <li className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs">گزارش کار احمد</Badge>
                 </li>
@@ -658,6 +656,27 @@ export default function AudioAnalysisPage() {
                 </li>
                 <li className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs">report sara</Badge>
+                </li>
+              </ul>
+            </div>
+
+            <div>
+              <h3 className="font-medium mb-3 text-gray-700 flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                گزارشات تیم:
+              </h3>
+              <ul className="space-y-2 text-sm">
+                <li className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">گزارشات امروز</Badge>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">همه گزارشات</Badge>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">کل گزارشات امروز</Badge>
+                </li>
+                <li className="flex items-center gap-2">
+                  <Badge variant="outline" className="text-xs">تمام گزارشات امروز</Badge>
                 </li>
               </ul>
             </div>
@@ -708,24 +727,6 @@ export default function AudioAnalysisPage() {
                   <Badge variant="outline" className="text-xs">تحلیل سودآوری هفتگی</Badge>
                 </li>
                 <li className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">سود ماه گذشته</Badge>
-                </li>
-                <li className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">سودآوری سه ماه</Badge>
-                </li>
-              </ul>
-            </div>
-
-            <div>
-              <h3 className="font-medium mb-3 text-gray-700 flex items-center gap-2">
-                <TrendingUp className="h-4 w-4" />
-                تحلیل سودآوری:
-              </h3>
-              <ul className="space-y-2 text-sm">
-                <li className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">تحلیل سودآوری هفتگی</Badge>
-                </li>
-                <li className="flex items-center gap-2">
                   <Badge variant="outline" className="text-xs">سودآوری ماه گذشته</Badge>
                 </li>
                 <li className="flex items-center gap-2">
@@ -748,6 +749,8 @@ export default function AudioAnalysisPage() {
                 <li>• برای بهترین نتیجه، در محیط آرام صحبت کنید</li>
                 <li>• پس از فشردن دکمه، کمی صبر کنید</li>
                 <li>• می‌توانید فارسی یا انگلیسی صحبت کنید</li>
+                <li>• مدیران می‌توانند گزارشات همه همکاران را ببینند</li>
+                <li>• "خودم" نام یکی از همکاران است</li>
               </ul>
             </div>
 
@@ -757,10 +760,12 @@ export default function AudioAnalysisPage() {
                 مثال‌های کاربردی:
               </h4>
               <ul className="text-sm text-green-700 space-y-1">
+                <li>• "گزارش خودم" - گزارش همکار خودم</li>
+                <li>• "گزارشات امروز" - همه گزارشات امروز</li>
                 <li>• "تحلیل فروش یک ماه گذشته"</li>
                 <li>• "بازخورد مشتریان هفته گذشته"</li>
                 <li>• "تحلیل سودآوری سه ماه"</li>
-                <li>• "گزارش کار محمد"</li>
+                <li>• "گزارش کار احمد"</li>
               </ul>
             </div>
           </div>

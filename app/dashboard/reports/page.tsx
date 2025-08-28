@@ -180,7 +180,10 @@ export default function ReportsPage() {
     );
   });
 
-  const isManager = currentUser && ['ceo', 'مدیر', 'sales_manager', 'مدیر فروش'].includes(currentUser.role);
+  const isManager = currentUser && [
+    'ceo', 'مدیر', 'sales_manager', 'مدیر فروش', 'admin', 'manager',
+    'supervisor', 'team_lead', 'مدیر عامل', 'مدیر کل', 'سرپرست'
+  ].includes(currentUser.role);
 
   if (!isManager) {
     return (

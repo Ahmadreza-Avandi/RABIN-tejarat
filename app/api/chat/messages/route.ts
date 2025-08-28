@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery, executeSingle } from '@/lib/database';
+import { getAuthUser, authErrorResponse } from '@/lib/auth-helper';
 
 // Import notification services
 const notificationService = require('@/lib/notification-service.js');
@@ -10,14 +11,14 @@ export async function GET(req: NextRequest) {
         const searchParams = new URL(req.url).searchParams;
         const userId = searchParams.get('userId');
         const conversationId = searchParams.get('conversation_id');
-        const currentUserId = req.headers.get('x-user-id');
 
-        if (!currentUserId) {
-            return NextResponse.json(
-                { success: false, message: 'Unauthorized' },
-                { status: 401 }
-            );
+        // Get authenticated user
+        const user = getAuthUser(req);
+        if (!user) {
+            return NextResponse.json(authErrorResponse.unauthorized, { status: 401 });
         }
+
+        const currentUserId = user.id;
 
         // If conversation_id is provided, get messages from that conversation
         if (conversationId) {
@@ -28,79 +29,79 @@ export async function GET(req: NextRequest) {
                     receiver.name as receiver_name
                 FROM chat_messages m
                 JOIN users sender ON m.sender_id = sender.id
-                JOIN users receiver ON m.receiver_id = receiver.id
-                WHERE m.id IN (
-                    SELECT cm.id FROM chat_messages cm
-                    JOIN chat_conversations cc ON cc.last_message_id = cm.id
-                    WHERE cc.id = ?
-                )
+                LEFT JOIN users receiver ON m.receiver_id = receiver.id
+                WHERE m.conversation_id = ?
                 ORDER BY m.created_at ASC
-                LIMIT 100
             `, [conversationId]);
 
-            return NextResponse.json({ success: true, data: messages });
+            return NextResponse.json({
+                success: true,
+                data: messages
+            });
         }
 
-        // If userId is provided, get direct messages between users
+        // If userId is provided, get conversation between current user and specified user
         if (userId) {
+            // First, find the conversation between these users
+            const conversations = await executeQuery(`
+                SELECT id FROM chat_conversations 
+                WHERE (participant_1_id = ? AND participant_2_id = ?) 
+                   OR (participant_1_id = ? AND participant_2_id = ?)
+                LIMIT 1
+            `, [currentUserId, userId, userId, currentUserId]);
+
+            if (!conversations || conversations.length === 0) {
+                return NextResponse.json({
+                    success: true,
+                    data: [],
+                    message: 'هیچ مکالمه‌ای یافت نشد'
+                });
+            }
+
+            const conversation = conversations[0];
+
+            // Get messages from this conversation
             const messages = await executeQuery(`
                 SELECT 
                     m.*,
                     sender.name as sender_name,
-                    sender.email as sender_email,
-                    receiver.name as receiver_name,
-                    receiver.email as receiver_email,
-                    reply_to.message as reply_to_message,
-                    reply_to.sender_id as reply_to_sender_id,
-                    reply_sender.name as reply_to_sender_name
+                    receiver.name as receiver_name
                 FROM chat_messages m
                 JOIN users sender ON m.sender_id = sender.id
-                JOIN users receiver ON m.receiver_id = receiver.id
-                LEFT JOIN chat_messages reply_to ON m.reply_to_id = reply_to.id
-                LEFT JOIN users reply_sender ON reply_to.sender_id = reply_sender.id
-                WHERE (m.sender_id = ? AND m.receiver_id = ?)
-                   OR (m.sender_id = ? AND m.receiver_id = ?)
-                   AND m.is_deleted = FALSE
+                LEFT JOIN users receiver ON m.receiver_id = receiver.id
+                WHERE m.conversation_id = ?
                 ORDER BY m.created_at ASC
-                LIMIT 100
-            `, [currentUserId, userId, userId, currentUserId]);
+            `, [conversation.id]);
 
-            // به‌روزرسانی وضعیت خوانده شدن پیام‌ها (فقط اگر پیام خوانده نشده وجود داشته باشد)
-            const unreadCount = await executeSingle(`
-                SELECT COUNT(*) as count FROM chat_messages
-                WHERE receiver_id = ? AND sender_id = ? AND read_at IS NULL
-            `, [currentUserId, userId]);
-
-            if (unreadCount && unreadCount.count > 0) {
-                await executeSingle(`
-                    UPDATE chat_messages
-                    SET read_at = CURRENT_TIMESTAMP
-                    WHERE receiver_id = ?
-                      AND sender_id = ?
-                      AND read_at IS NULL
-                `, [currentUserId, userId]);
-            }
-
-            return NextResponse.json({ success: true, data: messages });
+            return NextResponse.json({
+                success: true,
+                data: messages
+            });
         }
 
-        // If no specific parameters, return recent messages for current user
-        const messages = await executeQuery(`
+        // If no specific parameters, get recent messages for current user
+        const recentMessages = await executeQuery(`
             SELECT 
                 m.*,
                 sender.name as sender_name,
-                receiver.name as receiver_name
+                receiver.name as receiver_name,
+                c.title as conversation_title
             FROM chat_messages m
             JOIN users sender ON m.sender_id = sender.id
-            JOIN users receiver ON m.receiver_id = receiver.id
-            WHERE m.sender_id = ? OR m.receiver_id = ?
+            LEFT JOIN users receiver ON m.receiver_id = receiver.id
+            JOIN chat_conversations c ON m.conversation_id = c.id
+            WHERE c.participant_1_id = ? OR c.participant_2_id = ?
             ORDER BY m.created_at DESC
             LIMIT 50
         `, [currentUserId, currentUserId]);
 
-        return NextResponse.json({ success: true, data: messages });
+        return NextResponse.json({
+            success: true,
+            data: recentMessages
+        });
+
     } catch (error) {
-        console.error('Error in chat messages API:', error);
+        console.error('Get messages API error:', error);
         return NextResponse.json(
             { success: false, message: 'خطا در دریافت پیام‌ها' },
             { status: 500 }
@@ -110,7 +111,14 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        const currentUserId = req.headers.get('x-user-id');
+        // Get authenticated user
+        const user = getAuthUser(req);
+        if (!user) {
+            return NextResponse.json(authErrorResponse.unauthorized, { status: 401 });
+        }
+
+        const currentUserId = user.id;
+
         const {
             receiverId,
             message,
@@ -137,137 +145,123 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        if ((messageType === 'image' || messageType === 'file') && !fileUrl) {
+        if (messageType === 'file' && !fileUrl) {
             return NextResponse.json(
                 { success: false, message: 'فایل الزامی است' },
                 { status: 400 }
             );
         }
 
-        // Check for existing conversation or create new one
+        // Generate UUID for message
+        const messageId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+            var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+            return v.toString(16);
+        });
+
         let conversationId = providedConversationId;
+
+        // If no conversation ID provided, find or create conversation
         if (!conversationId) {
-            const [existingConversation] = await executeQuery(`
-                SELECT c.id 
-                FROM chat_conversations c
-                JOIN chat_participants p1 ON c.id = p1.conversation_id
-                JOIN chat_participants p2 ON c.id = p2.conversation_id
-                WHERE c.type = 'direct'
-                AND ((p1.user_id = ? AND p2.user_id = ?)
-                     OR (p1.user_id = ? AND p2.user_id = ?))
+            console.log('🔍 Looking for existing conversation between:', currentUserId, 'and', receiverId);
+
+            const existingConversations = await executeQuery(`
+                SELECT id FROM chat_conversations 
+                WHERE (participant_1_id = ? AND participant_2_id = ?) 
+                   OR (participant_1_id = ? AND participant_2_id = ?)
                 LIMIT 1
             `, [currentUserId, receiverId, receiverId, currentUserId]);
 
-            if (existingConversation) {
-                conversationId = existingConversation.id;
+            if (existingConversations && existingConversations.length > 0) {
+                conversationId = existingConversations[0].id;
+                console.log('✅ Found existing conversation:', conversationId);
             } else {
-                // Create new conversation ID (UUID format)
-                conversationId = 'cnv-' + Date.now().toString(36).substring(-6);
+                // Create new conversation
+                conversationId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) {
+                    var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+                    return v.toString(16);
+                });
 
-                await executeSingle(`
-                    INSERT INTO chat_conversations (id, type, created_by) 
-                    VALUES (?, 'direct', ?)
-                `, [conversationId, currentUserId]);
+                console.log('🆕 Creating new conversation:', conversationId);
 
-                // Add participants
-                await executeSingle(`
-                    INSERT INTO chat_participants (id, conversation_id, user_id, role)
-                    VALUES 
-                        (UUID(), ?, ?, 'admin'),
-                        (UUID(), ?, ?, 'member')
-                `, [conversationId, currentUserId, conversationId, receiverId]);
+                await executeQuery(`
+                    INSERT INTO chat_conversations (
+                        id, participant_1_id, participant_2_id, title, created_by, created_at, updated_at
+                    ) VALUES (?, ?, ?, ?, ?, NOW(), NOW())
+                `, [conversationId, currentUserId, receiverId, `مکالمه ${new Date().toLocaleDateString('fa-IR')}`, currentUserId]);
+
+                console.log('✅ New conversation created successfully');
             }
         }
 
-        // Generate message ID (UUID format)
-        const messageId = 'msg-' + Date.now().toString(36).substring(-6);
-        // Insert the message (remove delivered_at, seen_at)
-        await executeSingle(`
+        console.log('🔍 Final conversation ID:', conversationId);
+
+        if (!conversationId) {
+            console.error('❌ Conversation ID is still null!');
+            return NextResponse.json(
+                { success: false, message: 'خطا در ایجاد مکالمه' },
+                { status: 500 }
+            );
+        }
+
+        // Insert the message
+        await executeQuery(`
             INSERT INTO chat_messages (
-                id, conversation_id, sender_id, receiver_id,
-                message_type, message, file_url, file_name, file_size,
-                reply_to_id, sent_at
-            ) VALUES (
-                ?, ?, ?, ?,
-                ?, ?, ?, ?, ?,
-                ?, NOW()
-            )
+                id, conversation_id, sender_id, receiver_id, message, message_type,
+                file_url, file_name, file_size, reply_to_id, created_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
         `, [
-            messageId, conversationId, currentUserId, receiverId,
-            messageType, message, fileUrl, fileName, fileSize,
-            replyToId
+            messageId, conversationId, currentUserId, receiverId, message, messageType,
+            fileUrl, fileName, fileSize, replyToId
         ]);
 
-        // Update conversation's last message - simplified
-        await executeSingle(`
+        // Update conversation's updated_at
+        await executeQuery(`
             UPDATE chat_conversations 
-            SET last_message_id = ?,
-                updated_at = NOW()
+            SET updated_at = NOW() 
             WHERE id = ?
-        `, [messageId, conversationId]);
+        `, [conversationId]);
 
-        // Update last message in separate query
-        await executeSingle(`
-            UPDATE chat_conversations 
-            SET last_message = ?
-            WHERE id = ?
-        `, [message || 'فایل', conversationId]);
+        // Get the created message with sender info
+        const newMessage = await executeSingle(`
+            SELECT 
+                m.*,
+                sender.name as sender_name,
+                receiver.name as receiver_name
+            FROM chat_messages m
+            JOIN users sender ON m.sender_id = sender.id
+            LEFT JOIN users receiver ON m.receiver_id = receiver.id
+            WHERE m.id = ?
+        `, [messageId]);
 
-        // Send notifications for new message
+        // Send notifications
         try {
-            // const notificationService = require('../../../lib/notification-service-v2.js');
-            const notificationService = require('@/lib/notification-service.js');
-
-            // Get receiver info for notification
-            const receiverInfo = await executeQuery(`
-                SELECT name, email, phone FROM users WHERE id = ?
+            // Get receiver info
+            const receiver = await executeSingle(`
+                SELECT name, email FROM users WHERE id = ?
             `, [receiverId]);
 
-            console.log('🔍 Receiver info for notification:', receiverInfo);
-
-            if (receiverInfo && receiverInfo.length > 0) {
-                const receiver = receiverInfo[0];
-                const senderInfo = await executeQuery(`
-                    SELECT name FROM users WHERE id = ?
-                `, [currentUserId]);
-
-                const senderName = senderInfo && senderInfo.length > 0 ? senderInfo[0].name : 'کاربر';
-
-                console.log('📧 Notification details:', {
-                    receiverEmail: receiver.email,
-                    receiverPhone: receiver.phone,
-                    receiverName: receiver.name,
-                    senderName: senderName,
-                    messageLength: message?.length || 0
+            if (receiver) {
+                // Internal notification
+                await internalNotificationSystem.createNotification({
+                    userId: receiverId,
+                    type: 'chat_message',
+                    title: 'پیام جدید',
+                    message: `پیام جدید از ${user.email}`,
+                    data: {
+                        senderId: currentUserId,
+                        conversationId: conversationId,
+                        messageId: messageId
+                    }
                 });
 
-                // Send SMS notification if phone number exists
-                if (receiver.phone) {
-                    console.log('📱 Sending SMS notification to:', receiver.phone);
-                    const smsResult = await notificationService.sendNewMessageSMS(
-                        receiver.phone,
-                        receiver.name,
-                        senderName,
-                        message
-                    );
-                    console.log('📱 SMS notification result:', smsResult);
-                } else {
-                    console.log('⚠️ No phone number for SMS notification');
-                }
-
-                // Send email notification if email exists
-                if (receiver.email) {
-                    console.log('📧 Sending email notification to:', receiver.email);
-                    const emailResult = await notificationService.sendNewMessageEmail(
-                        receiver.email,
-                        receiver.name,
-                        senderName,
-                        message
-                    );
-                    console.log('📧 Email notification result:', emailResult);
-                } else {
-                    console.log('⚠️ No email address for email notification');
-                }
+                // External notification (email/SMS)
+                await notificationService.sendChatNotification({
+                    receiverEmail: receiver.email,
+                    receiverName: receiver.name,
+                    senderName: user.email,
+                    message: message || 'فایل ارسال شده',
+                    conversationId: conversationId
+                });
             }
         } catch (notificationError) {
             console.error('Notification error:', notificationError);
@@ -276,14 +270,12 @@ export async function POST(req: NextRequest) {
 
         return NextResponse.json({
             success: true,
-            data: {
-                messageId,
-                conversationId,
-                sent: true
-            }
+            data: newMessage,
+            message: 'پیام ارسال شد'
         });
+
     } catch (error) {
-        console.error('Error in chat/messages POST:', error);
+        console.error('Send message API error:', error);
         return NextResponse.json(
             { success: false, message: 'خطا در ارسال پیام' },
             { status: 500 }

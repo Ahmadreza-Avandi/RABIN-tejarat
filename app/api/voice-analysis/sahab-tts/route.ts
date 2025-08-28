@@ -171,15 +171,24 @@ export async function POST(req: NextRequest) {
 
             } catch (downloadError) {
                 console.error('❌ Error downloading audio file:', downloadError);
-                return NextResponse.json(
-                    {
-                        success: false,
-                        message: 'خطا در دانلود فایل صوتی',
-                        error_code: 'DOWNLOAD_ERROR',
-                        error_details: downloadError.message
-                    },
-                    { status: 500 }
-                );
+
+                // Fallback: Return the file URL directly for client-side handling
+                console.log('🔄 Falling back to direct URL method...');
+                return NextResponse.json({
+                    success: true,
+                    message: 'تبدیل متن به صدا با موفقیت انجام شد (روش مستقیم)',
+                    data: {
+                        audioUrl: audioUrl,
+                        audioBase64: null, // Will be handled client-side
+                        checksum: parsedResult.data.data.checksum,
+                        filePath: parsedResult.data.data.filePath,
+                        speaker: speaker,
+                        textLength: text.length,
+                        requestId: parsedResult.meta?.requestId,
+                        shamsiDate: parsedResult.meta?.shamsiDate,
+                        fallback: true
+                    }
+                });
             }
 
 

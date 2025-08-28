@@ -82,26 +82,92 @@ export class SahabTTSV2 {
                 throw new Error(errorMessage);
             }
 
-            // Check if we have audio data
-            if (!result.data || !result.data.audioBase64) {
-                console.error('❌ No audio data in response:', result);
+            // Check if we have audio data or URL
+            if (!result.data || (!result.data.audioBase64 && !result.data.audioUrl)) {
+                console.error('❌ No audio data or URL in response:', result);
                 throw new Error('داده صوتی در پاسخ یافت نشد');
             }
 
-            // Convert base64 to audio and play
-            await this.playBase64Audio(result.data.audioBase64);
+            // Play audio - either from base64 or direct URL
+            if (result.data.audioBase64) {
+                await this.playBase64Audio(result.data.audioBase64);
+            } else if (result.data.audioUrl) {
+                console.log('🔄 Using direct URL method for audio playback...');
+                await this.playDirectUrl(result.data.audioUrl);
+            }
 
             console.log('✅ Sahab TTS completed successfully');
 
         } catch (error) {
             console.error('❌ Sahab TTS Error:', error);
-            const errorMessage = error instanceof Error ? error.message : 'خطای نامشخص';
-            options?.onError?.(errorMessage);
-            throw error;
+            console.log('🔄 Attempting fallback to TalkBot TTS...');
+
+            try {
+                // Import TalkBot TTS dynamically
+                const { talkBotTTS } = await import('./talkbot-tts');
+                await talkBotTTS.speak(text, { server: 'farsi', sound: '3' });
+                console.log('✅ Fallback TTS completed successfully');
+            } catch (fallbackError) {
+                console.error('❌ Fallback TTS also failed:', fallbackError);
+                const errorMessage = error instanceof Error ? error.message : 'خطای نامشخص';
+                options?.onError?.(errorMessage);
+                throw error;
+            }
         } finally {
             this.isLoading = false;
             options?.onLoadingEnd?.();
         }
+    }
+
+    // Play audio from direct URL
+    private async playDirectUrl(audioUrl: string): Promise<void> {
+        return new Promise((resolve, reject) => {
+            try {
+                // Stop any current audio
+                this.stop();
+
+                // Create and configure audio element
+                const audio = new Audio(audioUrl);
+                this.currentAudio = audio;
+                this.isSpeaking = true;
+
+                // Set up event listeners
+                audio.onended = () => {
+                    console.log('✅ Sahab TTS playback completed (direct URL)');
+                    this.currentAudio = null;
+                    this.isSpeaking = false;
+                    resolve();
+                };
+
+                audio.onerror = (error) => {
+                    console.error('❌ Audio playback error (direct URL):', error);
+                    this.currentAudio = null;
+                    this.isSpeaking = false;
+                    reject(new Error('خطا در پخش صدا از URL مستقیم'));
+                };
+
+                audio.onloadstart = () => {
+                    console.log('🔄 شروع بارگذاری صدا از URL مستقیم...');
+                };
+
+                audio.oncanplay = () => {
+                    console.log('✅ صدا آماده پخش است (URL مستقیم)');
+                };
+
+                // Start playing
+                audio.play().catch((playError) => {
+                    console.error('❌ Play error (direct URL):', playError);
+                    this.currentAudio = null;
+                    this.isSpeaking = false;
+                    reject(new Error('خطا در شروع پخش صدا از URL مستقیم'));
+                });
+
+            } catch (error) {
+                console.error('❌ Error in playDirectUrl:', error);
+                this.isSpeaking = false;
+                reject(error);
+            }
+        });
     }
 
     // Play base64 audio data

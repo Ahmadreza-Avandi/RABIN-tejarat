@@ -2,10 +2,10 @@
 -- version 5.2.2
 -- https://www.phpmyadmin.net/
 --
--- Host: mysql:3306
--- Generation Time: Aug 18, 2025 at 05:09 PM
--- Server version: 10.5.29-MariaDB-ubu2004
--- PHP Version: 8.2.27
+-- Host: localhost
+-- Generation Time: Aug 28, 2025 at 04:07 PM
+-- Server version: 11.8.3-MariaDB
+-- PHP Version: 8.4.11
 
 SET SQL_MODE = "NO_AUTO_VALUE_ON_ZERO";
 START TRANSACTION;
@@ -115,8 +115,8 @@ CREATE TABLE `calendar_events` (
   `id` varchar(36) NOT NULL DEFAULT uuid(),
   `title` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
-  `start_date` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
-  `end_date` timestamp NOT NULL DEFAULT '0000-00-00 00:00:00',
+  `start_date` timestamp NOT NULL,
+  `end_date` timestamp NOT NULL,
   `all_day` tinyint(1) DEFAULT 0,
   `type` enum('call','meeting','follow_up','task','reminder','personal') DEFAULT 'meeting',
   `customer_id` varchar(36) DEFAULT NULL,
@@ -148,6 +148,8 @@ CREATE TABLE `chat_conversations` (
   `last_message` text DEFAULT NULL,
   `last_message_at` timestamp NULL DEFAULT current_timestamp(),
   `created_by` varchar(36) NOT NULL,
+  `participant_1_id` varchar(36) DEFAULT NULL,
+  `participant_2_id` varchar(36) DEFAULT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -156,8 +158,8 @@ CREATE TABLE `chat_conversations` (
 -- Dumping data for table `chat_conversations`
 --
 
-INSERT INTO `chat_conversations` (`id`, `title`, `type`, `description`, `avatar_url`, `is_active`, `last_message_id`, `last_message`, `last_message_at`, `created_by`, `created_at`, `updated_at`) VALUES
-('cnv-me5cge1q', NULL, 'direct', NULL, NULL, 1, 'msg-me6qva4v', 'اذلبتیطیظیلباتز رذ/مدنتورزفتد پود', '2025-08-10 07:10:13', 'ceo-001', '2025-08-10 07:10:13', '2025-08-11 06:41:29');
+INSERT INTO `chat_conversations` (`id`, `title`, `type`, `description`, `avatar_url`, `is_active`, `last_message_id`, `last_message`, `last_message_at`, `created_by`, `participant_1_id`, `participant_2_id`, `created_at`, `updated_at`) VALUES
+('cnv-me5cge1q', NULL, 'direct', NULL, NULL, 1, 'msg-mebonxhd', '. م', '2025-08-10 07:10:13', 'ceo-001', 'ceo-001', '50fdd768-8dbb-4161-a539-e9a4da40f6d2', '2025-08-10 07:10:13', '2025-08-28 15:27:48');
 
 -- --------------------------------------------------------
 
@@ -219,13 +221,18 @@ CREATE TABLE `chat_messages` (
 --
 
 INSERT INTO `chat_messages` (`id`, `conversation_id`, `sender_id`, `receiver_id`, `message`, `message_type`, `created_at`, `read_at`, `is_edited`, `is_deleted`, `edited_at`, `sent_at`, `reply_to_id`, `file_url`, `file_name`, `file_size`) VALUES
+('2134bad2-0d51-46ac-bd78-9b0645e2a903', 'cnv-me5cge1q', 'ceo-001', '50fdd768-8dbb-4161-a539-e9a4da40f6d2', 'تست', 'text', '2025-08-28 15:27:48', NULL, 0, 0, NULL, '2025-08-28 15:27:48', NULL, NULL, NULL, NULL),
+('45c4371b-143d-4881-a9c8-866527bf0a41', 'cnv-me5cge1q', 'ceo-001', '50fdd768-8dbb-4161-a539-e9a4da40f6d2', 'سلام! چت سیستم تست می‌شود.', 'text', '2025-08-28 15:17:30', NULL, 0, 0, NULL, '2025-08-28 15:17:30', NULL, NULL, NULL, NULL),
 ('msg-me5cge22', 'cnv-me5cge1q', 'ceo-001', '50fdd768-8dbb-4161-a539-e9a4da40f6d2', 'تست', 'text', '2025-08-10 07:10:13', NULL, 0, 0, NULL, '2025-08-10 07:10:13', NULL, NULL, NULL, NULL),
 ('msg-me6o8se9', 'cnv-me5cge1q', 'ceo-001', '50fdd768-8dbb-4161-a539-e9a4da40f6d2', 'سلام این پیام برای تسته', 'text', '2025-08-11 05:28:00', NULL, 0, 0, NULL, '2025-08-11 05:28:00', NULL, NULL, NULL, NULL),
 ('msg-me6ovwth', 'cnv-me5cge1q', 'ceo-001', '50fdd768-8dbb-4161-a539-e9a4da40f6d2', 'با سلام و درود خدمت آقای آوندی', 'text', '2025-08-11 05:45:59', NULL, 0, 0, NULL, '2025-08-11 05:45:59', NULL, NULL, NULL, NULL),
 ('msg-me6p128z', 'cnv-me5cge1q', 'ceo-001', '50fdd768-8dbb-4161-a539-e9a4da40f6d2', 'سلام تست \nتست \nتست', 'text', '2025-08-11 05:49:59', NULL, 0, 0, NULL, '2025-08-11 05:49:59', NULL, NULL, NULL, NULL),
 ('msg-me6qmj3g', 'cnv-me5cge1q', 'ceo-001', '50fdd768-8dbb-4161-a539-e9a4da40f6d2', 'جدی ؟؟', 'text', '2025-08-11 06:34:41', NULL, 0, 0, NULL, '2025-08-11 06:34:41', NULL, NULL, NULL, NULL),
 ('msg-me6qmkww', 'cnv-me5cge1q', 'ceo-001', '50fdd768-8dbb-4161-a539-e9a4da40f6d2', 'تست', 'text', '2025-08-11 06:34:43', NULL, 0, 0, NULL, '2025-08-11 06:34:43', NULL, NULL, NULL, NULL),
-('msg-me6qva4v', 'cnv-me5cge1q', 'ceo-001', '50fdd768-8dbb-4161-a539-e9a4da40f6d2', 'اذلبتیطیظیلباتز رذ/مدنتورزفتد پود', 'text', '2025-08-11 06:41:29', NULL, 0, 0, NULL, '2025-08-11 06:41:29', NULL, NULL, NULL, NULL);
+('msg-me6qva4v', 'cnv-me5cge1q', 'ceo-001', '50fdd768-8dbb-4161-a539-e9a4da40f6d2', 'اذلبتیطیظیلباتز رذ/مدنتورزفتد پود', 'text', '2025-08-11 06:41:29', NULL, 0, 0, NULL, '2025-08-11 06:41:29', NULL, NULL, NULL, NULL),
+('msg-mebong2p', 'cnv-me5cge1q', 'ceo-001', '50fdd768-8dbb-4161-a539-e9a4da40f6d2', 'شرسریشری', 'text', '2025-08-14 17:38:15', NULL, 0, 0, NULL, '2025-08-14 17:38:15', NULL, NULL, NULL, NULL),
+('msg-mebong2v', 'cnv-me5cge1q', 'ceo-001', '50fdd768-8dbb-4161-a539-e9a4da40f6d2', 'رشریکشپریش', 'text', '2025-08-14 17:38:15', NULL, 0, 0, NULL, '2025-08-14 17:38:15', NULL, NULL, NULL, NULL),
+('msg-mebonxhd', 'cnv-me5cge1q', 'ceo-001', '50fdd768-8dbb-4161-a539-e9a4da40f6d2', '. م', 'text', '2025-08-14 17:38:38', NULL, 0, 0, NULL, '2025-08-14 17:38:38', NULL, NULL, NULL, NULL);
 
 -- --------------------------------------------------------
 
@@ -520,6 +527,14 @@ CREATE TABLE `daily_reports` (
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='گزارش‌های روزانه کاربران';
+
+--
+-- Dumping data for table `daily_reports`
+--
+
+INSERT INTO `daily_reports` (`id`, `user_id`, `report_date`, `persian_date`, `work_description`, `completed_tasks`, `working_hours`, `challenges`, `achievements`, `status`, `created_at`, `updated_at`) VALUES
+('23ac4c60-840d-11f0-902a-db316565c9c4', 'ceo-001', '2025-01-28', '۱۴۰۴/۱۱/۰۸', 'مدیریت پروژه و بررسی گزارشات تیم', NULL, 8.00, 'هماهنگی بین تیم‌ها', 'بهبود فرآیندهای کاری', 'submitted', '2025-08-28 14:53:18', '2025-08-28 14:53:18'),
+('e8e353bf-cbba-43c8-8753-ba0ea2ac2f72', '50fdd768-8dbb-4161-a539-e9a4da40f6d2', '2025-08-28', '۱۴۰۴/۰۶/۰۶', 'حل مشکل صدا و گزارش و چت', '[]', 5.00, 'مشکل AUTH سیستم', 'دیپلوی پروژه', 'submitted', '2025-08-28 12:29:19', '2025-08-28 12:29:19');
 
 -- --------------------------------------------------------
 
@@ -973,6 +988,17 @@ CREATE TABLE `notifications` (
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
+--
+-- Dumping data for table `notifications`
+--
+
+INSERT INTO `notifications` (`id`, `user_id`, `type`, `title`, `message`, `related_id`, `related_type`, `is_read`, `read_at`, `created_at`, `updated_at`) VALUES
+('01bc997f-da29-41b6-810a-98a1877cb478', '50fdd768-8dbb-4161-a539-e9a4da40f6d2', 'chat_message', 'پیام جدید', 'پیام جدید از Robintejarat@gmail.com', NULL, NULL, 1, '2025-08-28 15:28:19', '2025-08-28 11:47:30', '2025-08-28 15:28:19'),
+('1d3b0f55-75b1-4d18-9e74-f40052bad8b3', 'ceo-001', 'report_submitted', '📊 گزارش جدید: گزارش روزانه ۱۴۰۴/۰۶/۰۶', 'گزارش \"گزارش روزانه ۱۴۰۴/۰۶/۰۶\" توسط خودم ارسال شد', 'e8e353bf-cbba-43c8-8753-ba0ea2ac2f72', 'report', 1, '2025-08-28 14:44:30', '2025-08-28 08:59:19', '2025-08-28 14:44:30'),
+('9fbcf3ab-2e7e-438f-b34d-65aa5eca0ee8', '50fdd768-8dbb-4161-a539-e9a4da40f6d2', 'chat_message', 'پیام جدید', 'پیام جدید از Robintejarat@gmail.com', NULL, NULL, 1, '2025-08-28 15:28:17', '2025-08-28 11:57:48', '2025-08-28 15:28:17'),
+('be9011f6-7b85-11f0-93d3-e55f2cbc2ba2', 'ceo-001', 'success', 'خوش آمدید', 'به سیستم مدیریت CRM خوش آمدید', NULL, NULL, 1, '2025-08-17 17:10:43', '2025-08-17 16:41:01', '2025-08-17 17:10:43'),
+('be901491-7b85-11f0-93d3-e55f2cbc2ba2', 'ceo-001', 'info', 'گزارش فروش', 'گزارش فروش ماهانه آماده شده است', NULL, NULL, 1, '2025-08-17 17:10:43', '2025-08-17 16:41:01', '2025-08-17 17:10:43');
+
 -- --------------------------------------------------------
 
 --
@@ -1053,6 +1079,13 @@ CREATE TABLE `products` (
   `created_at` timestamp NULL DEFAULT current_timestamp(),
   `updated_at` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `products`
+--
+
+INSERT INTO `products` (`id`, `name`, `category`, `description`, `specifications`, `base_price`, `currency`, `is_active`, `inventory`, `created_at`, `updated_at`) VALUES
+('d66fe853-514d-4af7-adf9-5c3b14f91238', 'نمیدونم', 'اینم نمیدونم', 'بازم نمیدونم', 'تست', 2000000.00, 'IRR', 1, 999, '2025-08-16 06:37:35', '2025-08-16 06:37:35');
 
 -- --------------------------------------------------------
 
@@ -1166,7 +1199,7 @@ CREATE TABLE `project_team` (
 
 CREATE TABLE `sales` (
   `id` varchar(36) NOT NULL DEFAULT uuid(),
-  `deal_id` varchar(36) NOT NULL,
+  `deal_id` varchar(36) DEFAULT NULL,
   `customer_id` varchar(36) NOT NULL,
   `customer_name` varchar(255) NOT NULL,
   `total_amount` decimal(15,2) NOT NULL,
@@ -1211,6 +1244,7 @@ INSERT INTO `sales` (`id`, `deal_id`, `customer_id`, `customer_name`, `total_amo
 ('607e244d-75b7-11f0-9306-e35500020927', '607e23de-75b7-11f0-9306-e35500020927', 'fa490a71-75b6-11f0-9306-e35500020927', 'فروش آذر 3', 8900000.00, 'IRR', 'partial', NULL, '2024-10-18 10:15:00', NULL, NULL, NULL, NULL, '607e242f-75b7-11f0-9306-e35500020927', 'مینا رضایی', '2024-10-18 10:15:00', '2025-08-10 06:59:15'),
 ('607e2535-75b7-11f0-9306-e35500020927', '607e24b0-75b7-11f0-9306-e35500020927', 'd44facc0-75b3-11f0-9306-e35500020927', 'فروش مهر 1', 16700000.00, 'IRR', 'paid', NULL, '2024-09-08 11:50:00', NULL, NULL, NULL, NULL, '607e2514-75b7-11f0-9306-e35500020927', 'حسن علیزاده', '2024-09-08 11:50:00', '2025-08-10 06:59:15'),
 ('607e263f-75b7-11f0-9306-e35500020927', '607e259e-75b7-11f0-9306-e35500020927', 'd44fd871-75b3-11f0-9306-e35500020927', 'فروش مهر 2', 11300000.00, 'IRR', 'paid', NULL, '2024-09-22 13:40:00', NULL, NULL, NULL, NULL, '607e261b-75b7-11f0-9306-e35500020927', 'زهرا محمدی', '2024-09-22 13:40:00', '2025-08-10 06:59:15'),
+('ce0bb8d8-f3f2-4857-9417-92f11e13df95', NULL, 'd44fd871-75b3-11f0-9306-e35500020927', 'شرکت نمونه 2', 2000000.00, 'IRR', 'partial', '22', '2025-08-17 16:06:28', '2025-08-16 20:30:00', '2025-08-16 20:30:00', '..', '33', 'ceo-001', 'مهندس کریمی', '2025-08-17 16:06:28', '2025-08-17 16:06:28'),
 ('e6d4fc77-75b3-11f0-9306-e35500020927', 'e6d4fa29-75b3-11f0-9306-e35500020927', 'd44facc0-75b3-11f0-9306-e35500020927', 'شرکت نمونه 1', 5000000.00, 'IRR', 'paid', NULL, '2025-08-10 06:34:22', NULL, NULL, NULL, NULL, 'e6d4fc6a-75b3-11f0-9306-e35500020927', 'فروشنده نمونه', '2025-08-10 06:34:22', '2025-08-10 06:34:22'),
 ('e6d50630-75b3-11f0-9306-e35500020927', 'e6d504a7-75b3-11f0-9306-e35500020927', 'd44fd871-75b3-11f0-9306-e35500020927', 'شرکت نمونه 2', 3000000.00, 'IRR', 'pending', NULL, '2025-08-10 06:34:22', NULL, NULL, NULL, NULL, 'e6d50628-75b3-11f0-9306-e35500020927', 'فروشنده نمونه', '2025-08-10 06:34:22', '2025-08-10 06:34:22');
 
@@ -1533,8 +1567,38 @@ CREATE TABLE `users` (
 --
 
 INSERT INTO `users` (`id`, `name`, `email`, `password_hash`, `password`, `role`, `status`, `avatar`, `avatar_url`, `phone`, `team`, `last_active`, `last_login`, `created_at`, `updated_at`, `created_by`) VALUES
-('50fdd768-8dbb-4161-a539-e9a4da40f6d2', 'خودم', 'rockygardner89@gmail.com', '$2a$12$M9MhJKMYNlxIJS/LSSpu8O75Sw.1Lg4i9CY1c0/on6MtKMHdTzLO2', '$2a$12$M9MhJKMYNlxIJS/LSSpu8O75Sw.1Lg4i9CY1c0/on6MtKMHdTzLO2', 'agent', 'active', NULL, NULL, '123', NULL, '2025-08-10 07:09:41', '2025-08-11 05:27:15', '2025-08-10 07:09:41', '2025-08-11 05:27:15', 'ceo-001'),
-('ceo-001', 'مهندس کریمی', 'Robintejarat@gmail.com', '$2b$10$ZD73doDN4r.HxJ5LPjGnXOOgRcYTBi3aLQjyR/WbL.J0F41lY1YcK', 'admin123', 'ceo', 'active', NULL, NULL, '', NULL, '2025-07-20 04:57:32', '2025-08-11 05:27:44', '2025-07-20 04:57:32', '2025-08-11 05:27:44', NULL);
+('50fdd768-8dbb-4161-a539-e9a4da40f6d2', 'خودم', 'rockygardner89@gmail.com', '$2a$12$M9MhJKMYNlxIJS/LSSpu8O75Sw.1Lg4i9CY1c0/on6MtKMHdTzLO2', '$2a$12$M9MhJKMYNlxIJS/LSSpu8O75Sw.1Lg4i9CY1c0/on6MtKMHdTzLO2', 'agent', 'active', NULL, NULL, '123', NULL, '2025-08-10 07:09:41', '2025-08-28 15:28:24', '2025-08-10 07:09:41', '2025-08-28 15:28:24', 'ceo-001'),
+('ceo-001', 'مهندس کریمی', 'Robintejarat@gmail.com', '$2b$10$ZD73doDN4r.HxJ5LPjGnXOOgRcYTBi3aLQjyR/WbL.J0F41lY1YcK', 'admin123', 'ceo', 'active', '/uploads/avatars/ceo-001-1755615503750.png', NULL, '', NULL, '2025-07-20 04:57:32', '2025-08-28 15:27:40', '2025-07-20 04:57:32', '2025-08-28 15:27:40', NULL);
+
+-- --------------------------------------------------------
+
+--
+-- Table structure for table `user_activities`
+--
+
+CREATE TABLE `user_activities` (
+  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `user_id` varchar(36) NOT NULL,
+  `activity_type` varchar(50) NOT NULL,
+  `description` text DEFAULT NULL,
+  `ip_address` varchar(45) DEFAULT NULL,
+  `user_agent` text DEFAULT NULL,
+  `created_at` timestamp NULL DEFAULT current_timestamp()
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+--
+-- Dumping data for table `user_activities`
+--
+
+INSERT INTO `user_activities` (`id`, `user_id`, `activity_type`, `description`, `ip_address`, `user_agent`, `created_at`) VALUES
+('12942e58-7cf7-11f0-9093-dc377bc569bf', 'ceo-001', 'logout', 'کاربر از سیستم خارج شد', '::1', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36', '2025-08-19 15:23:41'),
+('1fec73a9-7cfa-11f0-9093-dc377bc569bf', 'ceo-001', 'logout', 'کاربر از سیستم خارج شد', '::1', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36', '2025-08-19 15:45:33'),
+('53c9bb36-7b87-11f0-93d3-e55f2cbc2ba2', 'ceo-001', 'logout', 'کاربر از سیستم خارج شد', '::1', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36', '2025-08-17 16:52:21'),
+('5f35f374-8408-11f0-902a-db316565c9c4', 'ceo-001', 'logout', 'کاربر از سیستم خارج شد', '::1', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36', '2025-08-28 12:28:17'),
+('670594ea-7b87-11f0-93d3-e55f2cbc2ba2', 'ceo-001', 'logout', 'کاربر از سیستم خارج شد', '::1', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36', '2025-08-17 16:52:53'),
+('902e0d1d-8408-11f0-902a-db316565c9c4', '50fdd768-8dbb-4161-a539-e9a4da40f6d2', 'logout', 'کاربر از سیستم خارج شد', '::1', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36', '2025-08-28 12:29:39'),
+('de2cd7d4-7b8a-11f0-93d3-e55f2cbc2ba2', 'ceo-001', 'logout', 'کاربر از سیستم خارج شد', '::1', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36', '2025-08-17 17:17:41'),
+('f9a7c242-8411-11f0-902a-db316565c9c4', 'ceo-001', 'logout', 'کاربر از سیستم خارج شد', '::1', 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36', '2025-08-28 15:27:56');
 
 -- --------------------------------------------------------
 
@@ -1648,7 +1712,7 @@ CREATE TABLE `user_sessions` (
   `id` varchar(36) NOT NULL DEFAULT uuid(),
   `user_id` varchar(36) NOT NULL,
   `session_token` varchar(255) NOT NULL,
-  `expires_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `expires_at` timestamp NOT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -1742,7 +1806,7 @@ ALTER TABLE `backup_history`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_backup_status` (`status`),
   ADD KEY `idx_backup_type` (`type`),
-  ADD KEY `idx_backup_created_at` (`created_at`);
+  ADD KEY `idx_backup_created_at` (`created_at` DESC);
 
 --
 -- Indexes for table `calendar_events`
@@ -1765,7 +1829,9 @@ ALTER TABLE `chat_conversations`
   ADD KEY `idx_conversations_type` (`type`),
   ADD KEY `idx_conversations_last_message_at` (`last_message_at`),
   ADD KEY `idx_conversations_created_by` (`created_by`),
-  ADD KEY `fk_last_message` (`last_message_id`);
+  ADD KEY `fk_last_message` (`last_message_id`),
+  ADD KEY `fk_participant_1` (`participant_1_id`),
+  ADD KEY `fk_participant_2` (`participant_2_id`);
 
 --
 -- Indexes for table `chat_groups`
@@ -2174,7 +2240,7 @@ ALTER TABLE `survey_responses`
 ALTER TABLE `system_logs`
   ADD PRIMARY KEY (`id`),
   ADD KEY `idx_log_type` (`log_type`),
-  ADD KEY `idx_log_created_at` (`created_at`);
+  ADD KEY `idx_log_created_at` (`created_at` DESC);
 
 --
 -- Indexes for table `system_settings`
@@ -2263,6 +2329,15 @@ ALTER TABLE `users`
   ADD KEY `idx_role` (`role`),
   ADD KEY `idx_status` (`status`),
   ADD KEY `created_by` (`created_by`);
+
+--
+-- Indexes for table `user_activities`
+--
+ALTER TABLE `user_activities`
+  ADD PRIMARY KEY (`id`),
+  ADD KEY `idx_user_activities_user_id` (`user_id`),
+  ADD KEY `idx_user_activities_type` (`activity_type`),
+  ADD KEY `idx_user_activities_created` (`created_at`);
 
 --
 -- Indexes for table `user_module_permissions`
@@ -2398,7 +2473,9 @@ ALTER TABLE `calendar_events`
 --
 ALTER TABLE `chat_conversations`
   ADD CONSTRAINT `chat_conversations_ibfk_1` FOREIGN KEY (`created_by`) REFERENCES `users` (`id`),
-  ADD CONSTRAINT `fk_last_message` FOREIGN KEY (`last_message_id`) REFERENCES `chat_messages` (`id`) ON DELETE SET NULL;
+  ADD CONSTRAINT `fk_last_message` FOREIGN KEY (`last_message_id`) REFERENCES `chat_messages` (`id`) ON DELETE SET NULL,
+  ADD CONSTRAINT `fk_participant_1` FOREIGN KEY (`participant_1_id`) REFERENCES `users` (`id`),
+  ADD CONSTRAINT `fk_participant_2` FOREIGN KEY (`participant_2_id`) REFERENCES `users` (`id`);
 
 --
 -- Constraints for table `chat_groups`
@@ -2488,6 +2565,12 @@ ALTER TABLE `customer_tags`
 --
 ALTER TABLE `feedback_form_questions`
   ADD CONSTRAINT `feedback_form_questions_ibfk_1` FOREIGN KEY (`form_id`) REFERENCES `feedback_forms` (`id`) ON DELETE CASCADE;
+
+--
+-- Constraints for table `user_activities`
+--
+ALTER TABLE `user_activities`
+  ADD CONSTRAINT `fk_user_activities_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE CASCADE;
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;

@@ -61,10 +61,11 @@ export async function middleware(request: NextRequest) {
   }
 
   // For API routes (except auth and feedback), verify token and add user info to headers
-  if (pathname.startsWith('/api') && 
-      !pathname.startsWith('/api/auth') && 
-      !pathname.startsWith('/api/feedback/form/') && 
-      !pathname.startsWith('/api/feedback/submit')) {
+  if (pathname.startsWith('/api') &&
+    !pathname.startsWith('/api/auth') &&
+    !pathname.startsWith('/api/feedback/form/') &&
+    !pathname.startsWith('/api/feedback/submit') &&
+    !pathname.startsWith('/api/health')) {
     const token = request.headers.get('authorization')?.replace('Bearer ', '') ||
       request.cookies.get('auth-token')?.value;
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { executeQuery, executeSingle } from '@/lib/database';
+import { getAuthUser, authErrorResponse } from '@/lib/auth-helper';
 
 // Generate UUID function
 const generateUUID = () => {
@@ -12,14 +13,13 @@ const generateUUID = () => {
 // GET /api/chat/conversations - Get all conversations for current user
 export async function GET(req: NextRequest) {
     try {
-        // Get user ID from middleware headers
-        const currentUserId = req.headers.get('x-user-id');
-        if (!currentUserId) {
-            return NextResponse.json(
-                { success: false, message: 'Unauthorized' },
-                { status: 401 }
-            );
+        // Get authenticated user
+        const user = getAuthUser(req);
+        if (!user) {
+            return NextResponse.json(authErrorResponse.unauthorized, { status: 401 });
         }
+
+        const currentUserId = user.id;
 
         const conversations = await executeQuery(`
             SELECT 
@@ -28,14 +28,26 @@ export async function GET(req: NextRequest) {
                 lm.created_at as last_message_sent_at,
                 sender.name as last_message_sender_name
             FROM chat_conversations c
-            LEFT JOIN chat_messages lm ON c.last_message_id = lm.id
+            LEFT JOIN (
+                SELECT 
+                    conversation_id,
+                    message,
+                    sender_id,
+                    created_at,
+                    ROW_NUMBER() OVER (PARTITION BY conversation_id ORDER BY created_at DESC) as rn
+                FROM chat_messages
+            ) lm ON c.id = lm.conversation_id AND lm.rn = 1
             LEFT JOIN users sender ON lm.sender_id = sender.id
-            WHERE c.is_active = 1 AND c.created_by = ?
-            ORDER BY c.last_message_at DESC
-        `, [currentUserId]);
+            WHERE c.participant_1_id = ? OR c.participant_2_id = ?
+            ORDER BY 
+                CASE 
+                    WHEN lm.created_at IS NOT NULL THEN lm.created_at 
+                    ELSE c.created_at 
+                END DESC
+        `, [currentUserId, currentUserId]);
 
-        // Format conversations
-        const formattedConversations = conversations.map(conv => ({
+        // Format conversations with last message info
+        const formattedConversations = conversations.map((conv: any) => ({
             ...conv,
             last_message: conv.last_message_content ? {
                 content: conv.last_message_content,
@@ -65,116 +77,70 @@ export async function GET(req: NextRequest) {
 // POST /api/chat/conversations - Create a new conversation
 export async function POST(req: NextRequest) {
     try {
-        // Get user ID from middleware headers
-        const currentUserId = req.headers.get('x-user-id');
-        if (!currentUserId) {
+        // Get authenticated user
+        const user = getAuthUser(req);
+        if (!user) {
+            return NextResponse.json(authErrorResponse.unauthorized, { status: 401 });
+        }
+
+        const currentUserId = user.id;
+
+        const { participantId, title } = await req.json();
+
+        if (!participantId) {
             return NextResponse.json(
-                { success: false, message: 'Unauthorized' },
-                { status: 401 }
+                { success: false, message: 'شناسه شرکت‌کننده الزامی است' },
+                { status: 400 }
             );
         }
 
-        const body = await req.json();
-        const { type = 'direct', title, description } = body;
+        // Check if conversation already exists between these users
+        const existingConversation = await executeSingle(`
+            SELECT * FROM chat_conversations 
+            WHERE (participant_1_id = ? AND participant_2_id = ?) 
+               OR (participant_1_id = ? AND participant_2_id = ?)
+        `, [currentUserId, participantId, participantId, currentUserId]);
 
+        if (existingConversation) {
+            return NextResponse.json({
+                success: true,
+                data: existingConversation,
+                message: 'مکالمه از قبل وجود دارد'
+            });
+        }
+
+        // Create new conversation
         const conversationId = generateUUID();
+        const conversationTitle = title || `مکالمه ${new Date().toLocaleDateString('fa-IR')}`;
 
-        // Create conversation
-        await executeSingle(`
+        await executeQuery(`
             INSERT INTO chat_conversations (
-                id, title, type, description, is_active, created_by, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, 1, ?, NOW(), NOW())
-        `, [conversationId, title || 'New Conversation', type, description || null, currentUserId]);
+                id, participant_1_id, participant_2_id, title, created_at, updated_at
+            ) VALUES (?, ?, ?, ?, NOW(), NOW())
+        `, [conversationId, currentUserId, participantId, conversationTitle]);
 
-        // Get the created conversation
-        const [newConversation] = await executeQuery(`
-            SELECT * FROM chat_conversations WHERE id = ?
+        // Get the created conversation with participant info
+        const newConversation = await executeSingle(`
+            SELECT 
+                c.*,
+                p1.name as participant_1_name,
+                p2.name as participant_2_name
+            FROM chat_conversations c
+            JOIN users p1 ON c.participant_1_id = p1.id
+            JOIN users p2 ON c.participant_2_id = p2.id
+            WHERE c.id = ?
         `, [conversationId]);
 
         return NextResponse.json({
             success: true,
-            message: 'مکالمه با موفقیت ایجاد شد',
-            data: newConversation
+            data: newConversation,
+            message: 'مکالمه جدید ایجاد شد'
         });
 
     } catch (error) {
         console.error('Create conversation API error:', error);
         return NextResponse.json(
             { success: false, message: 'خطا در ایجاد مکالمه' },
-            { status: 500 }
-        );
-    }
-}
-
-// PUT /api/chat/conversations - Update a conversation
-export async function PUT(req: NextRequest) {
-    try {
-        const body = await req.json();
-        const { id, title, is_active } = body;
-
-        // For now, we'll use a default user ID (should come from session)
-        const currentUserId = '1';
-
-        if (!id) {
-            return NextResponse.json(
-                { success: false, message: 'شناسه مکالمه الزامی است' },
-                { status: 400 }
-            );
-        }
-
-        // Check if user is a participant
-        const participant = await executeQuery(`
-            SELECT id FROM chat_participants 
-            WHERE conversation_id = ? AND user_id = ?
-        `, [id, currentUserId]);
-
-        if (participant.length === 0) {
-            return NextResponse.json(
-                { success: false, message: 'شما عضو این مکالمه نیستید' },
-                { status: 403 }
-            );
-        }
-
-        // Build update query
-        const updateFields = [];
-        const updateValues = [];
-
-        if (title !== undefined) {
-            updateFields.push('title = ?');
-            updateValues.push(title);
-        }
-
-        if (is_active !== undefined) {
-            updateFields.push('is_active = ?');
-            updateValues.push(is_active);
-        }
-
-        if (updateFields.length === 0) {
-            return NextResponse.json(
-                { success: false, message: 'هیچ فیلد قابل به‌روزرسانی ارسال نشده است' },
-                { status: 400 }
-            );
-        }
-
-        updateFields.push('updated_at = ?');
-        // Format date for MySQL compatibility
-        updateValues.push(new Date().toISOString().slice(0, 19).replace('T', ' '));
-        updateValues.push(id);
-
-        await executeSingle(
-            `UPDATE chat_conversations SET ${updateFields.join(', ')} WHERE id = ?`,
-            updateValues
-        );
-
-        return NextResponse.json({
-            success: true,
-            message: 'مکالمه با موفقیت به‌روزرسانی شد'
-        });
-
-    } catch (error) {
-        console.error('Update conversation API error:', error);
-        return NextResponse.json(
-            { success: false, message: 'خطا در به‌روزرسانی مکالمه' },
             { status: 500 }
         );
     }

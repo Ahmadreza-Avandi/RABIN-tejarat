@@ -399,6 +399,13 @@ export const ResponsiveSidebar: React.FC<ResponsiveSidebarProps> = ({
       icon: MessageCircle,
     });
 
+    // Add Reports as standalone item for managers
+    navItems.push({
+      title: 'گزارش‌های روزانه',
+      href: '/dashboard/reports',
+      icon: FileText,
+    });
+
     // Add Customer Club with Email Management
     navItems.push({
       title: 'باشگاه مشتریان',

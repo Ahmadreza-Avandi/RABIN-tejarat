@@ -35,8 +35,11 @@ export default function LoginPage() {
 
             if (data.success) {
                 // Set cookie and redirect
-                document.cookie = `auth-token=${data.token}; path=/; max-age=86400; SameSite=Strict`;
-                router.push('/dashboard');
+                const isSecure = window.location.protocol === 'https:';
+                document.cookie = `auth-token=${data.token}; path=/; max-age=86400; SameSite=Lax${isSecure ? '; Secure' : ''}`;
+
+                // Force reload to ensure cookie is set
+                window.location.href = '/dashboard';
             } else {
                 setError(data.message || 'خطا در ورود به سیستم');
             }

@@ -141,17 +141,38 @@ export default function EnhancedChat({
             const response = await fetch('/api/users', {
                 headers: {
                     'Authorization': token ? `Bearer ${token}` : '',
+                    'Cookie': document.cookie,
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include'
             });
             if (response.ok) {
                 const data = await response.json();
                 if (data.success && data.users) {
                     setUsers(data.users.filter((u: User) => u.id !== currentUserId));
+                } else {
+                    console.error('Users API error:', data.message);
+                    toast({
+                        title: "خطا",
+                        description: data.message || "خطا در دریافت لیست کاربران",
+                        variant: "destructive"
+                    });
                 }
+            } else {
+                console.error('Users API HTTP error:', response.status);
+                toast({
+                    title: "خطا در احراز هویت",
+                    description: "لطفاً دوباره وارد شوید",
+                    variant: "destructive"
+                });
             }
         } catch (error) {
             console.error('Error fetching users:', error);
+            toast({
+                title: "خطا",
+                description: "خطا در ارتباط با سرور",
+                variant: "destructive"
+            });
         } finally {
             setLoading(false);
         }
@@ -167,13 +188,21 @@ export default function EnhancedChat({
             const response = await fetch(`/api/chat/messages?userId=${userId}`, {
                 headers: {
                     'Authorization': token ? `Bearer ${token}` : '',
+                    'Cookie': document.cookie,
                     'x-user-id': currentUserId,
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include'
             });
             if (response.ok) {
                 const data = await response.json();
-                if (data.success) setMessages(data.data || []);
+                if (data.success) {
+                    setMessages(data.data || []);
+                } else {
+                    console.error('Messages API error:', data.message);
+                }
+            } else {
+                console.error('Messages API HTTP error:', response.status);
             }
         } catch (error) {
             console.error('Error fetching messages:', error);
@@ -193,9 +222,11 @@ export default function EnhancedChat({
                 method: 'POST',
                 headers: {
                     'Authorization': token ? `Bearer ${token}` : '',
+                    'Cookie': document.cookie,
                     'x-user-id': currentUserId,
                     'Content-Type': 'application/json',
                 },
+                credentials: 'include',
                 body: JSON.stringify({
                     receiverId: selectedUser.id,
                     message: messageContent,
