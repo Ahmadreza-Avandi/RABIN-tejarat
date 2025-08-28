@@ -1,5 +1,6 @@
 // Audio Intelligence Service - Complete voice interaction system
 import { enhancedPersianSpeechRecognition } from './enhanced-persian-speech-recognition';
+import { advancedSpeechToText } from './advanced-speech-to-text';
 import { talkBotTTS } from './talkbot-tts';
 import { sahabTTSV2 } from './sahab-tts-v2';
 
@@ -168,6 +169,15 @@ export class AudioIntelligenceService {
     // Listen to user voice input with enhanced error handling and device checks
     private async listenToUser(): Promise<string> {
         try {
+            // Try advanced speech-to-text first (more reliable)
+            if (advancedSpeechToText.isSupported()) {
+                console.log('🎤 Using advanced speech-to-text service...');
+                return await advancedSpeechToText.recordAndConvert(30000); // 30 seconds max
+            }
+
+            // Fallback to Web Speech API
+            console.log('🎤 Falling back to Web Speech API...');
+
             // First check if we have the required APIs
             if (typeof window === 'undefined') {
                 throw new Error('صفحه هنوز به طور کامل بارگذاری نشده است');
@@ -179,15 +189,6 @@ export class AudioIntelligenceService {
 
             if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
                 throw new Error('دسترسی به میکروفون در این مرورگر یا محیط پشتیبانی نمی‌شود');
-            }
-
-            // Test audio output first
-            const audioTest = new Audio();
-            try {
-                await audioTest.play();
-                audioTest.pause();
-            } catch (e) {
-                console.warn('هشدار: تست پخش صدا ناموفق بود', e);
             }
 
             // Ensure any ongoing TTS is stopped to avoid feedback
@@ -202,52 +203,18 @@ export class AudioIntelligenceService {
                 console.warn('خطا در توقف Sahab TTS:', e);
             }
 
-            // Test microphone with timeout
-            const microphonePromise = enhancedPersianSpeechRecognition.testMicrophone();
-            const timeoutPromise = new Promise((_, reject) => {
-                setTimeout(() => reject(new Error('تست میکروفون با تایم‌اوت مواجه شد')), 5000);
-            });
-
-            const microphoneOk = await Promise.race([microphonePromise, timeoutPromise]);
-            
+            const microphoneOk = await enhancedPersianSpeechRecognition.testMicrophone();
             if (!microphoneOk) {
                 console.warn('میکروفون در دسترس نیست، استفاده از ورودی دستی');
                 return await enhancedPersianSpeechRecognition.getManualInput();
             }
 
-            // Start listening with timeout
-            const recognitionPromise = enhancedPersianSpeechRecognition.startListening();
-            const recognitionTimeout = new Promise<string>((_, reject) => {
-                setTimeout(() => reject(new Error('تشخیص گفتار با تایم‌اوت مواجه شد')), 15000);
-            });
-
-            return await Promise.race([recognitionPromise, recognitionTimeout]);
-
+            return await enhancedPersianSpeechRecognition.startListening();
         } catch (error) {
             console.error('خطا در تشخیص گفتار:', error);
-            
-            // Log additional diagnostic information
-            if (typeof window !== 'undefined') {
-                console.log('وضعیت محیط:', {
-                    isSecureContext: window.isSecureContext,
-                    hasMediaDevices: !!navigator.mediaDevices,
-                    hasGetUserMedia: !!navigator.mediaDevices?.getUserMedia,
-                    userAgent: navigator.userAgent
-                });
-            }
 
-            // Check specific error types
-            if (error instanceof Error) {
-                if (error.message.includes('permission')) {
-                    throw new Error('لطفاً دسترسی به میکروفون را تایید کنید');
-                }
-                if (error.message.includes('timed out')) {
-                    throw new Error('زمان تشخیص گفتار به پایان رسید، لطفاً دوباره تلاش کنید');
-                }
-            }
-
-            // Fallback to manual input
-            console.log('استفاده از ورودی دستی به عنوان fallback');
+            // Final fallback to manual input
+            console.log('استفاده از ورودی دستی به عنوان fallback نهایی');
             return await enhancedPersianSpeechRecognition.getManualInput();
         }
     }
@@ -960,6 +927,7 @@ export class AudioIntelligenceService {
     // Stop any ongoing audio processing
     stopAudioProcessing(): void {
         enhancedPersianSpeechRecognition.stopListening();
+        advancedSpeechToText.stop(); // Stop advanced speech-to-text
         talkBotTTS.stop();
         sahabTTSV2.stop(); // Stop new Sahab TTS as well
         this.isProcessing = false;
@@ -976,13 +944,15 @@ export class AudioIntelligenceService {
         currentSession: string | null;
         voiceInfo: any;
         sahabTTSStatus: any;
+        advancedSpeechStatus: any;
     } {
         const sahabStatus = sahabTTSV2.getStatus();
+        const advancedSpeechStatus = advancedSpeechToText.getStatus();
 
         return {
             isProcessing: this.isProcessing,
             isSpeaking: this.isSpeaking || sahabStatus.isSpeaking,
-            speechRecognitionSupported: enhancedPersianSpeechRecognition.isSupported(),
+            speechRecognitionSupported: enhancedPersianSpeechRecognition.isSupported() || advancedSpeechStatus.isSupported,
             ttsSupported: talkBotTTS.isSupported() || sahabTTSV2.isSupported(),
             currentSession: this.currentSession,
             voiceInfo: {
@@ -990,23 +960,26 @@ export class AudioIntelligenceService {
                 persian: 2,
                 arabic: 0,
                 female: 1,
-                bestVoice: 'Sahab TTS (Primary) + TalkBot (Fallback)',
+                bestVoice: 'Advanced Speech-to-Text + Sahab TTS (Primary) + TalkBot (Fallback)',
                 hasGoodVoice: true
             },
-            sahabTTSStatus: sahabStatus
+            sahabTTSStatus: sahabStatus,
+            advancedSpeechStatus: advancedSpeechStatus
         };
     }
 
     // Test the complete system
     async testSystem(): Promise<{
         speechRecognition: boolean;
+        advancedSpeechToText: boolean;
         textToSpeech: boolean;
         microphone: boolean;
         overall: boolean;
     }> {
         const results = {
             speechRecognition: enhancedPersianSpeechRecognition.isSupported(),
-            textToSpeech: talkBotTTS.isSupported(),
+            advancedSpeechToText: advancedSpeechToText.isSupported(),
+            textToSpeech: talkBotTTS.isSupported() || sahabTTSV2.isSupported(),
             microphone: false,
             overall: false
         };
@@ -1017,7 +990,9 @@ export class AudioIntelligenceService {
             console.error('خطا در تست میکروفون:', error);
         }
 
-        results.overall = results.speechRecognition && results.textToSpeech && results.microphone;
+        results.overall = (results.speechRecognition || results.advancedSpeechToText) &&
+            results.textToSpeech &&
+            results.microphone;
 
         return results;
     }

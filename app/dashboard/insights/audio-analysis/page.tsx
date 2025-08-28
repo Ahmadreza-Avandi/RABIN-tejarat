@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { Progress } from '@/components/ui/progress';
 import { audioIntelligenceService } from '@/lib/audio-intelligence-service';
+import { advancedSpeechToText } from '@/lib/advanced-speech-to-text';
 import { sahabTTSV2 } from '@/lib/sahab-tts-v2';
 import { enhancedPersianSpeechRecognition } from '@/lib/enhanced-persian-speech-recognition';
 import { Mic, MicOff, Volume2, VolumeX, Play, Square, Loader2, MessageCircle, BarChart3, TrendingUp, DollarSign, Calendar, Clock, Headphones, Settings, Activity, Users, Target, Zap, AlertCircle, CheckCircle } from 'lucide-react';
@@ -294,6 +295,38 @@ export default function AudioAnalysisPage() {
     setTtsStatus(prev => ({ ...prev, isLoading: false, error: null }));
   };
 
+  // Test advanced speech-to-text
+  const testAdvancedSpeech = async () => {
+    try {
+      setCurrentTask('تست سیستم ضبط پیشرفته...');
+      setIsProcessing(true);
+
+      console.log('🎤 Testing advanced speech-to-text...');
+
+      // Test if supported
+      if (!advancedSpeechToText.isSupported()) {
+        setAiResponse('سیستم ضبط پیشرفته در این مرورگر پشتیبانی نمی‌شود.');
+        return;
+      }
+
+      setCurrentTask('شروع ضبط... (5 ثانیه)');
+
+      // Record and convert (will auto-stop after 5 seconds in demo mode)
+      const result = await advancedSpeechToText.recordAndConvert(5000);
+
+      setTranscript(result);
+      setAiResponse(`✅ تست موفق! متن تشخیص داده شده: "${result}"`);
+
+    } catch (error) {
+      console.error('خطا در تست ضبط پیشرفته:', error);
+      const errorMessage = error instanceof Error ? error.message : 'خطای نامشخص';
+      setAiResponse(`❌ خطا در تست: ${errorMessage}`);
+    } finally {
+      setIsProcessing(false);
+      setCurrentTask('');
+    }
+  };
+
   // Test new Sahab TTS API
   const testSahabTTS = async () => {
     const testText = 'سلام! این یک تست سیستم صوتی جدید ساهاب است. کیفیت صدا بسیار عالی است.';
@@ -513,7 +546,7 @@ export default function AudioAnalysisPage() {
           <CardTitle className="text-lg">وضعیت سیستم</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
             <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
               <span className="text-sm">تشخیص گفتار:</span>
               <Badge variant={systemStatus?.speechRecognitionSupported ? "default" : "destructive"}>
@@ -528,12 +561,17 @@ export default function AudioAnalysisPage() {
               </Badge>
             </div>
 
-
+            <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
+              <span className="text-sm">ضبط پیشرفته:</span>
+              <Badge variant={systemStatus?.advancedSpeechStatus?.isSupported ? "default" : "destructive"}>
+                {systemStatus?.advancedSpeechStatus?.isSupported ? 'فعال' : 'غیرفعال'}
+              </Badge>
+            </div>
 
             <div className="flex items-center justify-between p-3 bg-muted rounded-lg">
               <span className="text-sm">در حال پردازش:</span>
-              <Badge variant={systemStatus?.isProcessing || ttsStatus.isLoading ? "secondary" : "outline"}>
-                {systemStatus?.isProcessing || ttsStatus.isLoading ? 'بله' : 'خیر'}
+              <Badge variant={systemStatus?.isProcessing || ttsStatus.isLoading || systemStatus?.advancedSpeechStatus?.isRecording ? "secondary" : "outline"}>
+                {systemStatus?.isProcessing || ttsStatus.isLoading || systemStatus?.advancedSpeechStatus?.isRecording ? 'بله' : 'خیر'}
               </Badge>
             </div>
           </div>
@@ -629,7 +667,22 @@ export default function AudioAnalysisPage() {
                 ) : (
                   <Volume2 className="h-4 w-4" />
                 )}
-                تست API جدید
+                تست TTS
+              </Button>
+
+              {/* Test Advanced Speech-to-Text Button */}
+              <Button
+                onClick={testAdvancedSpeech}
+                variant="outline"
+                disabled={isProcessing || systemStatus?.advancedSpeechStatus?.isRecording}
+                className="flex items-center gap-2"
+              >
+                {systemStatus?.advancedSpeechStatus?.isRecording ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Mic className="h-4 w-4" />
+                )}
+                تست ضبط پیشرفته
               </Button>
             </div>
           </div>
@@ -801,9 +854,10 @@ export default function AudioAnalysisPage() {
                 نکات مهم:
               </h4>
               <ul className="text-sm text-blue-700 space-y-1">
-                <li>• همه دستورات از طریق صدا ارسال می‌شوند</li>
+                <li>• سیستم از دو روش تشخیص گفتار استفاده می‌کند</li>
+                <li>• روش اول: ضبط و ارسال به سرور (دقت بالاتر)</li>
+                <li>• روش دوم: تشخیص آنلاین مرورگر (سریع‌تر)</li>
                 <li>• برای بهترین نتیجه، در محیط آرام صحبت کنید</li>
-                <li>• پس از فشردن دکمه، کمی صبر کنید</li>
                 <li>• می‌توانید فارسی یا انگلیسی صحبت کنید</li>
                 <li>• مدیران می‌توانند گزارشات همه همکاران را ببینند</li>
                 <li>• "خودم" نام یکی از همکاران است</li>
