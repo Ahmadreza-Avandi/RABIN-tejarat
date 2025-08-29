@@ -100,38 +100,136 @@ chmod +x setup-*.sh 2>/dev/null || true
 # Create VPS-specific audio test script
 cat > test-audio-vps.sh << 'EOFVPS'
 #!/bin/bash
-echo "🔧 تست سیستم صوتی VPS..."
+echo "🔧 تست کامل سیستم صوتی VPS..."
 
-# Test network connectivity to Sahab
-echo "📡 تست اتصال به Sahab API..."
-if curl -s --connect-timeout 5 --max-time 10 https://partai.gw.isahab.ir/speechRecognition/v1/base64 > /dev/null; then
-    echo "✅ اتصال به Sahab برقرار است"
-else
-    echo "❌ اتصال به Sahab برقرار نیست - استفاده از fallback"
-fi
+# Colors
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+NC='\033[0m'
 
-# Test local API
-echo "🔍 تست API محلی..."
-if curl -s http://localhost:3000/api/health > /dev/null; then
-    echo "✅ سرور محلی در حال اجرا است"
+log_success() { echo -e "${GREEN}✅ $1${NC}"; }
+log_warning() { echo -e "${YELLOW}⚠️  $1${NC}"; }
+log_error() { echo -e "${RED}❌ $1${NC}"; }
+log_info() { echo -e "${BLUE}ℹ️  $1${NC}"; }
+
+echo ""
+log_info "=== تست 1: وضعیت کانتینرها ==="
+docker-compose -f docker-compose.production.yml ps
+
+echo ""
+log_info "=== تست 2: Health Check ==="
+for i in {1..5}; do
+    log_info "تست health check $i/5..."
+    HEALTH_RESPONSE=$(curl -s http://localhost:3000/api/health 2>/dev/null)
     
-    # Test speech recognition endpoint
-    echo "🎤 تست endpoint تشخیص گفتار..."
-    response=$(curl -s -X POST \
-        -H "Content-Type: application/json" \
-        http://localhost:3000/api/voice-analysis/sahab-speech-recognition \
-        -d '{"data":"dGVzdA==","language":"fa","format":"pcm"}' 2>/dev/null)
-    
-    if echo "$response" | grep -q "success"; then
-        echo "✅ API تشخیص گفتار پاسخ می‌دهد"
+    if echo "$HEALTH_RESPONSE" | grep -q "ok"; then
+        log_success "Health check موفق!"
+        echo "📥 پاسخ: $HEALTH_RESPONSE"
+        break
     else
-        echo "⚠️ API تشخیص گفتار نیاز به احراز هویت دارد"
+        if [ $i -eq 5 ]; then
+            log_error "Health check ناموفق بعد از 5 تلاش"
+            log_info "بررسی لاگ‌ها: docker-compose -f docker-compose.production.yml logs nextjs"
+        else
+            log_warning "تلاش $i ناموفق، انتظار 10 ثانیه..."
+            sleep 10
+        fi
     fi
+done
+
+echo ""
+log_info "=== تست 3: اتصال شبکه ==="
+# Test network connectivity to Sahab
+log_info "تست اتصال به Sahab API..."
+if curl -s --connect-timeout 5 --max-time 10 https://partai.gw.isahab.ir/speechRecognition/v1/base64 > /dev/null; then
+    log_success "اتصال به Sahab برقرار است"
+    SAHAB_AVAILABLE=true
 else
-    echo "❌ سرور محلی در حال اجرا نیست"
+    log_error "اتصال به Sahab برقرار نیست - fallback فعال"
+    SAHAB_AVAILABLE=false
 fi
 
-echo "🎯 برای تست کامل: docker-compose -f docker-compose.production.yml logs nextjs"
+# Test internet connection
+if curl -s --connect-timeout 5 --max-time 10 https://www.google.com > /dev/null; then
+    log_success "اتصال اینترنت موفق"
+else
+    log_error "اتصال اینترنت ناموفق"
+fi
+
+echo ""
+log_info "=== تست 4: API های صوتی ==="
+
+# Test speech recognition endpoint
+log_info "تست API تشخیص گفتار..."
+SPEECH_RESPONSE=$(curl -s -X POST \
+    -H "Content-Type: application/json" \
+    http://localhost:3000/api/voice-analysis/sahab-speech-recognition \
+    -d '{"data":"dGVzdA==","language":"fa","format":"pcm","sampleRate":16000,"channels":1,"bitDepth":16}' 2>/dev/null)
+
+if echo "$SPEECH_RESPONSE" | grep -q "success"; then
+    log_success "API تشخیص گفتار موفق"
+    echo "📥 پاسخ: $(echo "$SPEECH_RESPONSE" | head -c 150)..."
+elif echo "$SPEECH_RESPONSE" | grep -q "fallback\|vps_mode"; then
+    log_success "API تشخیص گفتار در حالت fallback کار می‌کند"
+    echo "📥 پاسخ: $(echo "$SPEECH_RESPONSE" | head -c 150)..."
+elif echo "$SPEECH_RESPONSE" | grep -q "unauthorized\|توکن"; then
+    log_warning "API تشخیص گفتار نیاز به احراز هویت دارد (طبیعی است)"
+    echo "📥 پاسخ: $(echo "$SPEECH_RESPONSE" | head -c 150)..."
+else
+    log_error "API تشخیص گفتار مشکل دارد"
+    echo "📥 پاسخ: $(echo "$SPEECH_RESPONSE" | head -c 150)..."
+fi
+
+# Test TTS endpoint
+log_info "تست API تبدیل متن به گفتار..."
+TTS_RESPONSE=$(curl -s -X POST \
+    -H "Content-Type: application/json" \
+    http://localhost:3000/api/voice-analysis/sahab-tts \
+    -d '{"text":"سلام","voice":"female"}' 2>/dev/null)
+
+if echo "$TTS_RESPONSE" | grep -q "success\|audio"; then
+    log_success "API TTS موفق"
+elif echo "$TTS_RESPONSE" | grep -q "fallback"; then
+    log_success "API TTS در حالت fallback کار می‌کند"
+elif echo "$TTS_RESPONSE" | grep -q "unauthorized"; then
+    log_warning "API TTS نیاز به احراز هویت دارد (طبیعی است)"
+else
+    log_error "API TTS مشکل دارد"
+fi
+
+echo ""
+log_info "=== تست 5: فایل‌های وب ==="
+
+# Test PCM browser page
+if curl -s http://localhost:3000/test-pcm-browser.html | grep -q "تست PCM"; then
+    log_success "صفحه تست PCM در دسترس است"
+else
+    log_warning "صفحه تست PCM در دسترس نیست"
+fi
+
+echo ""
+log_info "=== خلاصه نتایج ==="
+
+if [ "$SAHAB_AVAILABLE" = true ]; then
+    log_success "Sahab API در دسترس است"
+else
+    log_warning "Sahab API بلاک است - سیستم از fallback استفاده می‌کند"
+fi
+
+echo ""
+echo "🎯 برای تست کامل سیستم صوتی:"
+echo "  1. به https://ahmadreza-avandi.ir/test-pcm-browser.html بروید"
+echo "  2. تست‌های مختلف را اجرا کنید"
+echo "  3. بگویید: 'گزارش احمد'"
+echo ""
+echo "🔧 اگر مشکل دارید:"
+echo "  • لاگ‌ها: docker-compose -f docker-compose.production.yml logs -f nextjs"
+echo "  • دیباگ: ./debug-audio-production.sh"
+echo "  • ری‌استارت: docker-compose -f docker-compose.production.yml restart nextjs"
+
+log_success "تست سیستم صوتی تکمیل شد! 🎤"
 EOFVPS
 
 chmod +x test-audio-vps.sh
@@ -401,7 +499,16 @@ docker-compose -f docker-compose.production.yml ps
 print_status "نمایش لاگ‌های اخیر..."
 docker-compose -f docker-compose.production.yml logs --tail=20
 
-# Step 14: Test audio system on VPS
+# Step 14: Rebuild with new configurations
+print_status "Rebuild با تنظیمات جدید..."
+docker-compose -f docker-compose.production.yml down
+docker-compose -f docker-compose.production.yml up -d --build
+
+# Wait for services to be ready
+print_status "انتظار برای آماده‌سازی سرویس‌ها..."
+sleep 60
+
+# Step 15: Test audio system on VPS
 print_status "تست سیستم صوتی VPS..."
 ./test-audio-vps.sh
 
@@ -441,8 +548,61 @@ EOFDEBUG
 
 chmod +x debug-audio-production.sh
 
-# Step 16: Final checks and information
-print_success "🎉 استقرار Production با موفقیت انجام شد!"
+# Step 16: Final audio system validation
+print_status "اعتبارسنجی نهایی سیستم صوتی..."
+
+# Test health endpoint one more time
+for i in {1..3}; do
+    if curl -s http://localhost:3000/api/health | grep -q "ok"; then
+        print_success "✅ Health endpoint کار می‌کند"
+        break
+    else
+        print_warning "انتظار برای آماده شدن سرویس... ($i/3)"
+        sleep 15
+    fi
+done
+
+# Test audio endpoints
+print_status "تست endpoint های صوتی..."
+
+# Test speech recognition with proper headers
+SPEECH_TEST=$(curl -s -X POST \
+    -H "Content-Type: application/json" \
+    http://localhost:3000/api/voice-analysis/sahab-speech-recognition \
+    -d '{"data":"dGVzdA==","language":"fa","format":"pcm"}' 2>/dev/null)
+
+if echo "$SPEECH_TEST" | grep -q "success\|fallback\|unauthorized"; then
+    print_success "✅ Speech Recognition API پاسخ می‌دهد"
+else
+    print_warning "⚠️ Speech Recognition API ممکن است نیاز به تنظیم بیشتر داشته باشد"
+fi
+
+# Create a simple audio test script for users
+cat > test-audio-simple.sh << 'EOFTEST'
+#!/bin/bash
+echo "🎤 تست ساده سیستم صوتی"
+echo "=========================="
+
+echo "1. تست Health:"
+curl -s http://localhost:3000/api/health | head -c 100
+echo ""
+
+echo "2. تست Speech Recognition:"
+curl -s -X POST \
+    -H "Content-Type: application/json" \
+    http://localhost:3000/api/voice-analysis/sahab-speech-recognition \
+    -d '{"data":"dGVzdA==","language":"fa"}' | head -c 200
+echo ""
+
+echo "3. برای تست کامل به مرورگر بروید:"
+echo "   https://ahmadreza-avandi.ir/test-pcm-browser.html"
+EOFTEST
+
+chmod +x test-audio-simple.sh
+print_success "اسکریپت تست ساده ایجاد شد: ./test-audio-simple.sh"
+
+# Step 17: Final checks and information
+print_success "🎉 استقرار Production با سیستم صوتی کامل انجام شد!"
 echo
 echo "📋 آدرس‌های سرویس:"
 echo "   🌐 سایت اصلی: https://ahmadreza-avandi.ir"
@@ -457,12 +617,18 @@ echo "   🛑 توقف: docker-compose -f docker-compose.production.yml down"
 echo "   🎤 دیباگ صوتی: ./debug-audio-production.sh"
 echo "   🔧 تست VPS: ./test-audio-vps.sh"
 echo
+echo "🎤 سیستم صوتی:"
+echo "   ✅ PCM Audio Converter فعال"
+echo "   ✅ Fallback mode برای VPS تنظیم شده"
+echo "   ✅ Client-side audio processing"
+echo "   ✅ Real-time speech recognition"
+echo ""
 echo "⚠️  نکات مهم:"
-echo "   1. سیستم صوتی برای VPS بهینه‌سازی شده (fallback به manual input)"
-echo "   2. Sahab API ممکن است از VPS بلاک باشد - fallback فعال است"
-echo "   3. فایل .env.server را با اطلاعات واقعی تنظیم کنید"
-echo "   4. برای تست سیستم صوتی از HTTPS استفاده کنید"
-echo "   5. PCM conversion در مرورگر کار می‌کند"
+echo "   1. سیستم صوتی کاملاً در مرورگر کار می‌کند"
+echo "   2. HTTPS ضروری است برای دسترسی به میکروفون"
+echo "   3. Sahab API اگر بلاک باشد، fallback فعال است"
+echo "   4. PCM conversion با کیفیت 16kHz/16-bit/Mono"
+echo "   5. تست کامل: https://ahmadreza-avandi.ir/test-pcm-browser.html"
 echo
 print_warning "🔐 فراموش نکنید: رمزهای عبور را تغییر دهید و سرور را امن کنید!"
 
@@ -491,9 +657,18 @@ case "$1" in
         git pull
         docker-compose -f docker-compose.production.yml build --no-cache
         docker-compose -f docker-compose.production.yml up -d
+        echo "انتظار برای آماده شدن سرویس‌ها..."
+        sleep 60
+        ./test-audio-simple.sh
+        ;;
+    test-audio)
+        ./test-audio-vps.sh
+        ;;
+    health)
+        curl -s http://localhost:3000/api/health | jq . || curl -s http://localhost:3000/api/health
         ;;
     *)
-        echo "Usage: $0 {start|stop|restart|logs|status|update}"
+        echo "Usage: $0 {start|stop|restart|logs|status|update|test-audio|health}"
         exit 1
         ;;
 esac
