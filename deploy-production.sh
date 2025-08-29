@@ -147,6 +147,8 @@ services:
     container_name: crm-nextjs
     env_file:
       - .env
+    ports:
+      - "3000:3000"
     # Remove audio devices for VPS (they don't exist)
     # devices:
     #   - "/dev/snd:/dev/snd"
@@ -177,11 +179,11 @@ services:
       - API_RETRY_COUNT=3
     restart: unless-stopped
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000"]
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
       interval: 30s
       timeout: 10s
-      retries: 3
-      start_period: 40s
+      retries: 5
+      start_period: 60s
     depends_on:
       mysql:
         condition: service_healthy

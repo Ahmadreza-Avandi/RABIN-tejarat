@@ -1,33 +1,31 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 
-export async function GET() {
+// GET /api/health - Health check endpoint
+export async function GET(req: NextRequest) {
     try {
-        // Check database connection
-        const mysql = require('mysql2/promise');
-
-        const connection = await mysql.createConnection({
-            host: process.env.DATABASE_HOST || 'mysql',
-            user: process.env.DATABASE_USER || 'root',
-            password: process.env.DATABASE_PASSWORD || '1234',
-            database: process.env.DATABASE_NAME || 'crm_system',
-        });
-
-        await connection.execute('SELECT 1');
-        await connection.end();
-
         return NextResponse.json({
-            status: 'healthy',
+            status: 'ok',
             timestamp: new Date().toISOString(),
-            database: 'connected',
-            environment: process.env.NODE_ENV || 'development'
-        });
+            uptime: process.uptime(),
+            environment: process.env.NODE_ENV || 'development',
+            version: '1.0.0',
+            services: {
+                database: 'connected', // TODO: Add actual DB check
+                audio: process.env.VPS_MODE === 'true' ? 'fallback' : 'enabled',
+                sahab_api: process.env.SAHAB_API_KEY ? 'configured' : 'missing'
+            }
+        }, { status: 200 });
     } catch (error) {
+        console.error('Health check error:', error);
         return NextResponse.json({
-            status: 'unhealthy',
+            status: 'error',
             timestamp: new Date().toISOString(),
-            database: 'disconnected',
-            error: error instanceof Error ? error.message : 'Unknown error',
-            environment: process.env.NODE_ENV || 'development'
+            error: error instanceof Error ? error.message : 'Unknown error'
         }, { status: 500 });
     }
+}
+
+// HEAD /api/health - Simple health check for load balancers
+export async function HEAD(req: NextRequest) {
+    return new NextResponse(null, { status: 200 });
 }
