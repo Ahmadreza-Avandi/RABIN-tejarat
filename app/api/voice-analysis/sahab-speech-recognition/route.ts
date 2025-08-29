@@ -125,7 +125,8 @@ export async function POST(req: NextRequest) {
                 hasData: !!parsedResult.data,
                 hasDataData: !!parsedResult.data?.data,
                 dataType: typeof parsedResult.data?.data,
-                dataContent: parsedResult.data?.data
+                dataContent: parsedResult.data?.data,
+                fullResponse: JSON.stringify(parsedResult, null, 2)
             });
 
             // بررسی ساختارهای مختلف پاسخ ساهاب

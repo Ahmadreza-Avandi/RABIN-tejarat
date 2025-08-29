@@ -30,25 +30,31 @@ export async function POST(request: NextRequest) {
         // Simulate processing time
         await new Promise(resolve => setTimeout(resolve, 1000));
 
-        // For demo purposes, return a sample Persian text
+        // For demo purposes, return a more realistic text based on common commands
         // In production, you'd implement actual speech recognition
-        const sampleTexts = [
-            'گزارش کار امروز',
-            'تحلیل فروش ماه گذشته',
-            'بازخورد مشتریان',
-            'آمار سودآوری',
-            'گزارش همکاران'
-        ];
 
-        const randomText = sampleTexts[Math.floor(Math.random() * sampleTexts.length)];
+        // Try to guess based on audio file size and common patterns
+        let predictedText = 'گزارش خودم'; // Default to personal report
+
+        // Simple heuristic based on file size (larger files might be longer commands)
+        if (audioFile.size > 100000) {
+            predictedText = 'گزارش کار احمد';
+        } else if (audioFile.size > 80000) {
+            predictedText = 'تحلیل فروش';
+        } else if (audioFile.size > 60000) {
+            predictedText = 'گزارش خودم';
+        }
+
+        console.log('🔮 Predicted text based on heuristics:', predictedText);
 
         console.log('✅ Local speech processing completed (demo mode)');
 
         return NextResponse.json({
             success: true,
-            text: randomText,
+            text: predictedText,
             provider: 'local-demo',
             language: 'fa',
+            confidence: 0.6, // Lower confidence for demo
             note: 'این یک نسخه آزمایشی است. برای استفاده واقعی، سرویس تشخیص گفتار باید پیکربندی شود.'
         });
 

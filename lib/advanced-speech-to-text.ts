@@ -194,14 +194,14 @@ export class AdvancedSpeechToText {
     private async convertWithSahab(audioBlob: Blob): Promise<string> {
         // Convert Blob to Base64
         const base64Audio = await this.blobToBase64(audioBlob);
-        
+
         const response = await fetch('/api/voice-analysis/sahab-speech-recognition', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
             },
             body: JSON.stringify({
-                audioData: base64Audio,
+                data: base64Audio,  // تصحیح نام فیلد
                 language: 'fa'
             }),
             credentials: 'include'
@@ -212,8 +212,8 @@ export class AdvancedSpeechToText {
         }
 
         const data = await response.json();
-        if (data.success && data.text) {
-            return data.text;
+        if (data.success && data.data && data.data.text) {
+            return data.data.text;
         }
         throw new Error('Sahab API did not return recognized text');
     }
