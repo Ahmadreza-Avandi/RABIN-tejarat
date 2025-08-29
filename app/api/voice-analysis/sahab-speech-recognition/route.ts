@@ -220,21 +220,50 @@ export async function POST(req: NextRequest) {
                 }
             });
 
-        } catch (fetchError) {
+        } catch (fetchError: any) {
             console.error('❌ Sahab Speech Recognition Fetch Error:', fetchError);
             console.log('🔄 Falling back to VPS-compatible STT...');
 
-            // VPS Fallback: Return a mock transcription with instructions
-            return NextResponse.json({
-                success: true,
-                message: 'تشخیص گفتار (حالت VPS) - لطفاً از ورودی دستی استفاده کنید',
-                transcript: 'گزارش احمد',
-                confidence: 0.8,
-                fallback: true,
-                vps_mode: true,
-                instructions: 'در محیط VPS، لطفاً دستور خود را به صورت متنی وارد کنید',
-                original_error: fetchError.message
-            });
+            // Check if it's a network timeout or connection error
+            const isNetworkError = fetchError.name === 'AbortError' ||
+                fetchError.message?.includes('timeout') ||
+                fetchError.message?.includes('network') ||
+                fetchError.message?.includes('fetch');
+
+            if (isNetworkError) {
+                console.log('🌐 Network issue detected, using VPS fallback mode');
+
+                // VPS Fallback: Return a mock transcription with instructions
+                return NextResponse.json({
+                    success: true,
+                    message: 'تشخیص گفتار (حالت VPS) - شبکه در دسترس نیست',
+                    data: {
+                        text: process.env.AUDIO_FALLBACK_TEXT || 'گزارش احمد',
+                        confidence: 0.8,
+                        language: language,
+                        fallback: true,
+                        vps_mode: true,
+                        network_issue: true,
+                        instructions: 'در محیط VPS، لطفاً دستور خود را به صورت متنی وارد کنید'
+                    },
+                    original_error: fetchError.message
+                });
+            } else {
+                // Other errors - still provide fallback
+                return NextResponse.json({
+                    success: true,
+                    message: 'تشخیص گفتار (حالت fallback)',
+                    data: {
+                        text: process.env.AUDIO_FALLBACK_TEXT || 'گزارش احمد',
+                        confidence: 0.7,
+                        language: language,
+                        fallback: true,
+                        vps_mode: true,
+                        error_type: 'api_error'
+                    },
+                    original_error: fetchError.message
+                });
+            }
         }
 
     } catch (error) {

@@ -193,9 +193,15 @@ export async function POST(req: NextRequest) {
 
 
 
-        } catch (fetchError) {
+        } catch (fetchError: any) {
             console.error('❌ Sahab API Fetch Error:', fetchError);
             console.log('🔄 Falling back to VPS-compatible TTS...');
+
+            // Check if it's a network timeout or connection error
+            const isNetworkError = fetchError.name === 'AbortError' ||
+                fetchError.message?.includes('timeout') ||
+                fetchError.message?.includes('network') ||
+                fetchError.message?.includes('fetch');
 
             // VPS Fallback: Return a silent audio file with message
             const silentAudio = "UklGRnoAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAAABmYWN0BAAAAAAAAABkYXRhAAAAAA==";
@@ -203,10 +209,16 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({
                 success: true,
                 message: `تبدیل متن به صدا (حالت VPS): "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`,
-                audioData: silentAudio,
-                audioUrl: `data:audio/wav;base64,${silentAudio}`,
-                fallback: true,
-                vps_mode: true,
+                data: {
+                    audioBase64: `data:audio/wav;base64,${silentAudio}`,
+                    audioUrl: `data:audio/wav;base64,${silentAudio}`,
+                    speaker: speaker,
+                    textLength: text.length,
+                    fallback: true,
+                    vps_mode: true,
+                    network_issue: isNetworkError,
+                    text_preview: text.substring(0, 100)
+                },
                 original_error: fetchError.message
             });
         }

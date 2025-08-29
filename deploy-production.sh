@@ -75,6 +75,10 @@ else
     exit 1
 fi
 
+# Also create .env.local for compatibility
+cp .env .env.local
+print_success "فایل .env.local نیز ایجاد شد"
+
 # Step 3: Create necessary directories
 print_status "ایجاد دایرکتری‌های ضروری..."
 mkdir -p database
@@ -508,9 +512,9 @@ docker-compose -f docker-compose.production.yml up -d --build
 print_status "انتظار برای آماده‌سازی سرویس‌ها..."
 sleep 60
 
-# Step 15: Test audio system on VPS
-print_status "تست سیستم صوتی VPS..."
-./test-audio-vps.sh
+# Step 15: Fix and test complete audio system
+print_status "تعمیر و تست کامل سیستم صوتی..."
+./fix-audio-complete.sh
 
 # Step 15: Create audio debug script for production
 cat > debug-audio-production.sh << 'EOFDEBUG'
