@@ -45,10 +45,10 @@ export class SahabTTSV2 {
         options?.onLoadingStart?.();
 
         try {
-            console.log('🎵 شروع تبدیل متن به صدا با Sahab API:', text.substring(0, 50) + '...');
+            console.log('🎵 شروع تبدیل متن به صدا با Sahab API جدید:', text.substring(0, 50) + '...');
 
-            // Call our backend API
-            const response = await fetch('/api/voice-analysis/sahab-tts', {
+            // Call our backend API with new endpoint
+            const response = await fetch('/api/voice-analysis/sahab-tts-v2', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -96,19 +96,46 @@ export class SahabTTSV2 {
                 await this.playDirectUrl(result.data.audioUrl);
             }
 
-            console.log('✅ Sahab TTS completed successfully');
+            console.log('✅ Sahab TTS V2 completed successfully');
 
         } catch (error) {
-            console.error('❌ Sahab TTS Error:', error);
-            console.log('🔄 Attempting fallback to TalkBot TTS...');
+            console.error('❌ Sahab TTS V2 Error:', error);
+            console.log('🔄 Attempting fallback to old Sahab TTS...');
 
             try {
-                // Import TalkBot TTS dynamically
+                // Fallback to old Sahab TTS API
+                const fallbackResponse = await fetch('/api/voice-analysis/sahab-tts', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        text: text,
+                        speaker: options?.speaker || "3"
+                    })
+                });
+
+                if (fallbackResponse.ok) {
+                    const fallbackResult = await fallbackResponse.json();
+                    if (fallbackResult.success && fallbackResult.data) {
+                        if (fallbackResult.data.audioBase64) {
+                            await this.playBase64Audio(fallbackResult.data.audioBase64);
+                        } else if (fallbackResult.data.audioUrl) {
+                            await this.playDirectUrl(fallbackResult.data.audioUrl);
+                        }
+                        console.log('✅ Fallback to old Sahab TTS successful');
+                        return;
+                    }
+                }
+
+                // Final fallback to TalkBot TTS
+                console.log('🔄 Attempting final fallback to TalkBot TTS...');
                 const { talkBotTTS } = await import('./talkbot-tts');
                 await talkBotTTS.speak(text, { server: 'farsi', sound: '3' });
-                console.log('✅ Fallback TTS completed successfully');
+                console.log('✅ Final fallback TTS completed successfully');
             } catch (fallbackError) {
-                console.error('❌ Fallback TTS also failed:', fallbackError);
+                console.error('❌ All TTS methods failed:', fallbackError);
                 const errorMessage = error instanceof Error ? error.message : 'خطای نامشخص';
                 options?.onError?.(errorMessage);
                 throw error;
@@ -312,20 +339,38 @@ export class SahabTTSV2 {
     // Get available speakers
     async getAvailableSpeakers(): Promise<Array<{ id: string; name: string; description: string; gender: string; default?: boolean }>> {
         try {
-            const response = await fetch('/api/voice-analysis/sahab-tts', {
+            // Try new API first
+            const response = await fetch('/api/voice-analysis/sahab-tts-v2', {
                 method: 'GET',
                 credentials: 'include'
             });
 
             if (response.ok) {
                 const result = await response.json();
-                return result.speakers || [];
+                if (result.speakers && result.speakers.length > 0) {
+                    console.log('✅ Got speakers from new Sahab API V2');
+                    return result.speakers;
+                }
+            }
+
+            // Fallback to old API
+            console.log('🔄 Falling back to old Sahab API for speakers');
+            const fallbackResponse = await fetch('/api/voice-analysis/sahab-tts', {
+                method: 'GET',
+                credentials: 'include'
+            });
+
+            if (fallbackResponse.ok) {
+                const fallbackResult = await fallbackResponse.json();
+                if (fallbackResult.speakers && fallbackResult.speakers.length > 0) {
+                    return fallbackResult.speakers;
+                }
             }
         } catch (error) {
             console.error('Error fetching speakers:', error);
         }
 
-        // Fallback speakers
+        // Final fallback speakers
         return [
             { id: '1', name: 'صدای 1', description: 'صدای مردانه', gender: 'male' },
             { id: '2', name: 'صدای 2', description: 'صدای زنانه', gender: 'female' },

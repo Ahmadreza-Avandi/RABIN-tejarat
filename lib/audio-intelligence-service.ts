@@ -167,13 +167,39 @@ export class AudioIntelligenceService {
         }
     }
 
-    // Listen to user voice input with enhanced error handling and device checks
+    // Listen to user voice input with manual control
     private async listenToUser(): Promise<string> {
         try {
             // Try Sahab Speech Recognition first (most reliable for Persian)
             if (sahabSpeechRecognition.isSupported()) {
                 console.log('🎤 Using Sahab Speech Recognition service...');
-                return await sahabSpeechRecognition.recordAndConvert(30000); // 30 seconds max
+
+                // Start recording session
+                const session = await sahabSpeechRecognition.startRecordingSession();
+
+                // Wait for user to manually stop (this will be controlled by UI)
+                // For now, we'll use a timeout as fallback
+                return new Promise((resolve, reject) => {
+                    // Set a maximum timeout
+                    const maxTimeout = setTimeout(async () => {
+                        try {
+                            if (session.isRecording()) {
+                                const result = await session.stop();
+                                resolve(result);
+                            }
+                        } catch (error) {
+                            reject(error);
+                        }
+                    }, 30000); // 30 seconds max
+
+                    // Store session for manual control
+                    (this as any).currentRecordingSession = {
+                        session,
+                        timeout: maxTimeout,
+                        resolve,
+                        reject
+                    };
+                });
             }
 
             // Fallback to advanced speech-to-text
@@ -262,22 +288,31 @@ export class AudioIntelligenceService {
     // Analyze voice command to determine type and extract information
     private analyzeVoiceCommand(text: string): VoiceCommand {
         const cleanText = text.toLowerCase().trim();
+        console.log('🔍 تحلیل دستور صوتی:', cleanText);
 
-        // Check for report commands
-        const reportKeywords = ['گزارش', 'report', 'گزارش کار', 'کارکرد'];
+        // Check for report commands - بهبود یافته
+        const reportKeywords = ['گزارش', 'report', 'گزارش کار', 'کارکرد', 'گزارش من', 'گزارش خودم'];
         const hasReportKeyword = reportKeywords.some(keyword =>
             cleanText.includes(keyword.toLowerCase())
         );
 
         if (hasReportKeyword) {
-            // Extract employee name
-            const employeeName = this.extractEmployeeName(text);
+            console.log('✅ دستور گزارش تشخیص داده شد');
+
+            // Extract employee name - بهبود یافته
+            let employeeName = this.extractEmployeeName(text);
+
+            // اگر "خودم" یا "من" گفته، نام کاربر فعلی را استفاده کن
+            if (cleanText.includes('خودم') || cleanText.includes('من') || cleanText.includes('خود')) {
+                employeeName = 'current_user'; // نشانگر کاربر فعلی
+                console.log('📝 درخواست گزارش کاربر فعلی');
+            }
 
             return {
                 text,
                 type: 'report',
                 employeeName,
-                confidence: employeeName ? 0.9 : 0.6
+                confidence: employeeName ? 0.95 : 0.7
             };
         }
 
@@ -351,22 +386,45 @@ export class AudioIntelligenceService {
         };
     }
 
-    // Extract employee name from voice command
+    // Extract employee name from voice command - بهبود یافته
     private extractEmployeeName(text: string): string | undefined {
+        const cleanText = text.toLowerCase().trim();
+
+        // بررسی کلمات مربوط به خود کاربر
+        const selfKeywords = ['خودم', 'من', 'خود', 'مال من'];
+        if (selfKeywords.some(keyword => cleanText.includes(keyword))) {
+            console.log('📝 تشخیص درخواست گزارش شخصی');
+            return 'current_user';
+        }
+
+        // الگوهای استخراج نام
         const patterns = [
             /گزارش\s*کار\s*(.+)/i,
             /گزارش\s*(.+)/i,
             /report\s*(.+)/i,
-            /کارکرد\s*(.+)/i
+            /کارکرد\s*(.+)/i,
+            /گزارش\s*من/i,
+            /گزارش\s*خودم/i
         ];
 
         for (const pattern of patterns) {
             const match = text.match(pattern);
             if (match && match[1]) {
-                return match[1].trim();
+                const extractedName = match[1].trim();
+
+                // حذف کلمات اضافی
+                const cleanName = extractedName
+                    .replace(/را|رو|کن|بده|نشان بده|بگو/gi, '')
+                    .trim();
+
+                if (cleanName && cleanName.length > 0) {
+                    console.log('📝 نام استخراج شده:', cleanName);
+                    return cleanName;
+                }
             }
         }
 
+        console.log('⚠️ نام کارمند استخراج نشد');
         return undefined;
     }
 
@@ -425,21 +483,20 @@ export class AudioIntelligenceService {
         }
     }
 
-    // Process report-related commands
+    // Process report-related commands - بهبود یافته
     private async processReportCommand(command: VoiceCommand): Promise<AIResponse> {
         if (!command.employeeName) {
             return {
-                text: 'لطفاً نام همکار را مشخص کنید. مثال: "گزارش کار احمد"',
+                text: 'لطفاً نام همکار را مشخص کنید. مثال: "گزارش کار احمد" یا "گزارش خودم"',
                 type: 'info'
             };
         }
 
         try {
-            // Check authentication first
-            console.log('🔍 Checking authentication...');
+            console.log('📊 پردازش درخواست گزارش برای:', command.employeeName);
 
-            // Debug: Check available cookies
-            console.log('🍪 Available cookies:', document.cookie);
+            // بررسی احراز هویت
+            console.log('🔍 بررسی احراز هویت...');
 
             const authCheck = await fetch('/api/auth/me', {
                 method: 'GET',
@@ -449,33 +506,30 @@ export class AudioIntelligenceService {
                 }
             });
 
-            console.log('🔍 Auth check response:', authCheck.status, authCheck.ok);
+            console.log('🔍 وضعیت احراز هویت:', authCheck.status, authCheck.ok);
 
-            if (!authCheck.ok) {
-                const errorData = await authCheck.json().catch(() => ({}));
-                console.log('🔍 Auth error details:', errorData);
-                console.log('⚠️ Auth check failed, but continuing with API call...');
-
-                // Don't return error here, let the API handle authentication
-                // return {
-                //     text: `برای دسترسی به گزارشات، لطفاً وارد سیستم شوید. خطا: ${errorData.message || 'نامشخص'}`,
-                //     type: 'error'
-                // };
+            let currentUser = null;
+            if (authCheck.ok) {
+                const authData = await authCheck.json();
+                currentUser = authData;
+                console.log('👤 کاربر فعلی:', currentUser);
             }
 
-            const authData = await authCheck.json();
-            console.log('🔍 Auth data:', authData);
+            // تعیین نام کارمند نهایی
+            let finalEmployeeName = command.employeeName;
+            if (command.employeeName === 'current_user' && currentUser) {
+                finalEmployeeName = currentUser.name || currentUser.email || 'کاربر فعلی';
+                console.log('📝 استفاده از نام کاربر فعلی:', finalEmployeeName);
+            }
 
-            // Call API to get report
-            console.log('📞 Calling voice-analysis API...');
+            // فراخوانی API برای دریافت گزارش
+            console.log('📞 فراخوانی API تحلیل صوتی...');
 
-            // Try to get token for backup
             const token = this.findAuthToken();
             const headers: any = {
                 'Content-Type': 'application/json',
             };
 
-            // Add Authorization header if token found
             if (token) {
                 headers['Authorization'] = `Bearer ${token}`;
             }
@@ -483,35 +537,45 @@ export class AudioIntelligenceService {
             const response = await fetch('/api/voice-analysis/process', {
                 method: 'POST',
                 headers,
-                credentials: 'include', // Include cookies
+                credentials: 'include',
                 body: JSON.stringify({
                     text: command.text,
-                    employeeName: command.employeeName
+                    employeeName: finalEmployeeName,
+                    originalCommand: command.employeeName,
+                    isCurrentUser: command.employeeName === 'current_user'
                 })
             });
 
-            console.log('📞 Voice-analysis response:', response.status, response.ok);
+            console.log('📞 پاسخ API تحلیل صوتی:', response.status, response.ok);
 
             const data = await response.json();
-            console.log('📞 Voice-analysis data:', data);
+            console.log('📞 داده‌های دریافتی:', data);
 
             if (response.ok && data.success) {
                 if (data.data.employee_found) {
+                    const reportText = command.employeeName === 'current_user'
+                        ? `گزارش شما:\n\n${data.data.analysis}`
+                        : `گزارش همکار ${data.data.employee_name}:\n\n${data.data.analysis}`;
+
                     return {
-                        text: `گزارش همکار ${data.data.employee_name}:\n\n${data.data.analysis}`,
+                        text: reportText,
                         type: 'success',
                         data: data.data
                     };
                 } else {
+                    const notFoundText = command.employeeName === 'current_user'
+                        ? 'گزارشی برای شما یافت نشد.'
+                        : `همکار "${finalEmployeeName}" در سیستم یافت نشد. لطفاً نام را بررسی کنید.`;
+
                     return {
-                        text: `همکار "${command.employeeName}" در سیستم یافت نشد. لطفاً نام را بررسی کنید.`,
+                        text: notFoundText,
                         type: 'info'
                     };
                 }
             } else {
-                console.error('❌ API Error:', response.status, data);
+                console.error('❌ خطای API:', response.status, data);
                 return {
-                    text: `خطا در دریافت گزارش: ${data.message || 'خطای نامشخص'} (Status: ${response.status})`,
+                    text: `خطا در دریافت گزارش: ${data.message || 'خطای نامشخص'} (وضعیت: ${response.status})`,
                     type: 'error'
                 };
             }
@@ -931,11 +995,36 @@ export class AudioIntelligenceService {
         }
     }
 
+    // Stop current recording and process the result
+    async stopCurrentRecording(): Promise<void> {
+        const currentSession = (this as any).currentRecordingSession;
+        if (currentSession) {
+            try {
+                clearTimeout(currentSession.timeout);
+                const result = await currentSession.session.stop();
+                currentSession.resolve(result);
+                (this as any).currentRecordingSession = null;
+                console.log('✅ ضبط متوقف شد و در حال پردازش...');
+            } catch (error) {
+                currentSession.reject(error);
+                (this as any).currentRecordingSession = null;
+            }
+        }
+    }
+
     // Stop any ongoing audio processing
     stopAudioProcessing(): void {
+        // Stop current recording session if exists
+        const currentSession = (this as any).currentRecordingSession;
+        if (currentSession) {
+            clearTimeout(currentSession.timeout);
+            currentSession.reject(new Error('عملیات توسط کاربر لغو شد'));
+            (this as any).currentRecordingSession = null;
+        }
+
         enhancedPersianSpeechRecognition.stopListening();
         advancedSpeechToText.stop();
-        sahabSpeechRecognition.stop(); // Stop Sahab speech recognition
+        sahabSpeechRecognition.stop();
         talkBotTTS.stop();
         sahabTTSV2.stop();
         this.isProcessing = false;

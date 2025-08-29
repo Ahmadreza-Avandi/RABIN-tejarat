@@ -111,13 +111,20 @@ export default function AudioAnalysisPage() {
 
   const handleVoiceInteraction = async () => {
     if (isProcessing) {
-      // Stop current processing
-      audioIntelligenceService.stopAudioProcessing();
-      setIsProcessing(false);
-      setIsListening(false);
-      setIsSpeaking(false);
-      setProcessingProgress(0);
-      setCurrentTask('');
+      // Stop current recording and process the result
+      try {
+        setCurrentTask('در حال پردازش صدای ضبط شده...');
+        await audioIntelligenceService.stopCurrentRecording();
+        // The processing will continue automatically after stopping
+      } catch (error) {
+        console.error('خطا در توقف ضبط:', error);
+        audioIntelligenceService.stopAudioProcessing();
+        setIsProcessing(false);
+        setIsListening(false);
+        setIsSpeaking(false);
+        setProcessingProgress(0);
+        setCurrentTask('');
+      }
       return;
     }
 
@@ -608,6 +615,33 @@ export default function AudioAnalysisPage() {
         </CardContent>
       </Card>
 
+      {/* Processing Progress */}
+      {(isProcessing || currentTask) && (
+        <Card className="mb-6">
+          <CardContent className="pt-6">
+            <div className="space-y-2">
+              <div className="flex justify-between text-sm">
+                <span>{currentTask || 'در حال پردازش...'}</span>
+                {processingProgress > 0 && <span>{processingProgress}%</span>}
+              </div>
+              {processingProgress > 0 ? (
+                <Progress value={processingProgress} className="w-full" />
+              ) : (
+                <div className="w-full bg-gray-200 rounded-full h-2">
+                  <div className="bg-blue-600 h-2 rounded-full animate-pulse" style={{ width: '60%' }}></div>
+                </div>
+              )}
+              {isListening && (
+                <div className="flex items-center justify-center gap-2 text-green-600 mt-2">
+                  <div className="w-2 h-2 bg-green-600 rounded-full animate-ping"></div>
+                  <span className="text-sm">در حال ضبط...</span>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Main Control Panel */}
       <Card className="mb-6">
         <CardHeader>
@@ -642,13 +676,15 @@ export default function AudioAnalysisPage() {
             <div className="text-center">
               {isProcessing && (
                 <p className="text-lg font-medium">
-                  {isListening ? 'در حال گوش دادن...' : isSpeaking ? 'در حال پخش پاسخ...' : 'در حال پردازش...'}
+                  {isListening ? 'در حال ضبط صدا...' : isSpeaking ? 'در حال پخش پاسخ...' : 'در حال پردازش...'}
                 </p>
               )}
               <p className="text-sm text-muted-foreground mt-1">
                 {isProcessing
-                  ? 'برای توقف کلیک کنید'
-                  : 'برای شروع تعامل صوتی کلیک کنید'}
+                  ? isListening
+                    ? 'برای توقف ضبط و پردازش کلیک کنید'
+                    : 'در حال پردازش...'
+                  : 'برای شروع ضبط صدا کلیک کنید'}
               </p>
             </div>
 
@@ -660,7 +696,23 @@ export default function AudioAnalysisPage() {
                   onClick={stopAllAudio}
                   variant="destructive"
                 >
-                  توقف همه
+                  توقف اضطراری
+                </Button>
+              )}
+
+              {/* Manual Stop Recording Button */}
+              {isListening && (
+                <Button
+                  onClick={async () => {
+                    try {
+                      await audioIntelligenceService.stopCurrentRecording();
+                    } catch (error) {
+                      console.error('خطا در توقف ضبط:', error);
+                    }
+                  }}
+                  variant="secondary"
+                >
+                  پایان ضبط و پردازش
                 </Button>
               )}
 
@@ -857,28 +909,29 @@ export default function AudioAnalysisPage() {
           <Separator className="my-4" />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div className="p-3 bg-blue-50 rounded-lg border border-blue-200">
-              <h4 className="font-medium text-blue-800 mb-2 flex items-center gap-2">
-                <Zap className="h-4 w-4" />
-                نکات مهم:
-              </h4>
-              <ul className="text-sm text-blue-700 space-y-1">
-                <li>• سیستم از API ساهاب برای تشخیص گفتار استفاده می‌کند</li>
-                <li>• دقت بالا در تشخیص زبان فارسی</li>
-                <li>• پردازش آنلاین با کیفیت عالی</li>
-                <li>• برای بهترین نتیجه، در محیط آرام صحبت کنید</li>
-                <li>• فقط زبان فارسی پشتیبانی می‌شود</li>
-                <li>• مدیران می‌توانند گزارشات همه همکاران را ببینند</li>
-                <li>• "خودم" نام یکی از همکاران است</li>
-              </ul>
-            </div>
+            
 
             <div className="p-3 bg-green-50 rounded-lg border border-green-200">
               <h4 className="font-medium text-green-800 mb-2 flex items-center gap-2">
                 <Target className="h-4 w-4" />
-                مثال‌های کاربردی:
+                نحوه استفاده:
               </h4>
               <ul className="text-sm text-green-700 space-y-1">
+                <li>• روی دکمه میکروفون کلیک کنید</li>
+                <li>• شروع به صحبت کنید</li>
+                <li>• دوباره کلیک کنید یا "پایان ضبط" را بزنید</li>
+                <li>• صبر کنید تا متن استخراج شود</li>
+                <li>• سیستم دستور را تشخیص داده و اجرا می‌کند</li>
+                <li>• پاسخ به صورت صوتی پخش می‌شود</li>
+              </ul>
+            </div>
+
+            <div className="p-3 bg-yellow-50 rounded-lg border border-yellow-200">
+              <h4 className="font-medium text-yellow-800 mb-2 flex items-center gap-2">
+                <Target className="h-4 w-4" />
+                مثال‌های دستورات:
+              </h4>
+              <ul className="text-sm text-yellow-700 space-y-1">
                 <li>• "گزارش خودم" - گزارش همکار خودم</li>
                 <li>• "گزارشات امروز" - همه گزارشات امروز</li>
                 <li>• "تحلیل فروش یک ماه گذشته"</li>

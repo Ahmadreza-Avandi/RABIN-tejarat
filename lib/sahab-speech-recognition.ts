@@ -19,15 +19,21 @@ export class SahabSpeechRecognition {
 
     // Start recording audio
     async startRecording(): Promise<void> {
+        console.log('🎤 درخواست شروع ضبط...');
+
         if (this.isRecording) {
+            console.warn('⚠️ ضبط در حال حاضر در جریان است');
             throw new Error('در حال حاضر ضبط در جریان است');
         }
 
         if (!this.isSupported()) {
+            console.error('❌ مرورگر از ضبط پشتیبانی نمی‌کند');
             throw new Error('مرورگر شما از ضبط صدا پشتیبانی نمی‌کند');
         }
 
         try {
+            console.log('🎤 درخواست دسترسی به میکروفون...');
+
             // Get microphone access
             this.stream = await navigator.mediaDevices.getUserMedia({
                 audio: {
@@ -38,6 +44,8 @@ export class SahabSpeechRecognition {
                 }
             });
 
+            console.log('✅ دسترسی به میکروفون موفق');
+
             // Clear previous chunks
             this.audioChunks = [];
 
@@ -46,24 +54,46 @@ export class SahabSpeechRecognition {
                 mimeType: 'audio/webm;codecs=opus'
             };
 
+            console.log('🔧 بررسی پشتیبانی از فرمت‌های صوتی...');
+
             // Fallback mime types
             if (!MediaRecorder.isTypeSupported(options.mimeType)) {
+                console.log('⚠️ webm/opus پشتیبانی نمی‌شود، تلاش برای فرمت‌های دیگر...');
                 if (MediaRecorder.isTypeSupported('audio/mp4')) {
                     options.mimeType = 'audio/mp4';
+                    console.log('✅ استفاده از فرمت mp4');
                 } else if (MediaRecorder.isTypeSupported('audio/wav')) {
                     options.mimeType = 'audio/wav';
+                    console.log('✅ استفاده از فرمت wav');
                 } else {
                     delete (options as any).mimeType;
+                    console.log('⚠️ استفاده از فرمت پیش‌فرض مرورگر');
                 }
+            } else {
+                console.log('✅ استفاده از فرمت webm/opus');
             }
 
             this.mediaRecorder = new MediaRecorder(this.stream, options);
+            console.log('✅ MediaRecorder ایجاد شد با فرمت:', this.mediaRecorder.mimeType);
 
             // Handle data available
             this.mediaRecorder.ondataavailable = (event) => {
+                console.log('📊 داده صوتی دریافت شد:', event.data.size, 'bytes');
                 if (event.data.size > 0) {
                     this.audioChunks.push(event.data);
                 }
+            };
+
+            this.mediaRecorder.onstart = () => {
+                console.log('🎤 ضبط شروع شد');
+            };
+
+            this.mediaRecorder.onstop = () => {
+                console.log('⏹️ ضبط متوقف شد');
+            };
+
+            this.mediaRecorder.onerror = (event) => {
+                console.error('❌ خطا در MediaRecorder:', event);
             };
 
             // Start recording
@@ -73,16 +103,25 @@ export class SahabSpeechRecognition {
             console.log('🎤 شروع ضبط صدا برای ساهاب...');
 
         } catch (error) {
-            console.error('خطا در شروع ضبط:', error);
-            throw new Error('خطا در دسترسی به میکروفون');
+            console.error('❌ خطا در شروع ضبط:', {
+                error: error,
+                message: error instanceof Error ? error.message : 'خطای نامشخص',
+                name: error instanceof Error ? error.name : undefined
+            });
+            throw new Error('خطا در دسترسی به میکروفون: ' + (error instanceof Error ? error.message : 'خطای نامشخص'));
         }
     }
 
     // Stop recording and return audio blob
     async stopRecording(): Promise<Blob> {
+        console.log('⏹️ درخواست توقف ضبط...');
+
         if (!this.isRecording || !this.mediaRecorder) {
+            console.error('❌ ضبط در جریان نیست');
             throw new Error('ضبط در جریان نیست');
         }
+
+        console.log('📊 تعداد chunks ضبط شده:', this.audioChunks.length);
 
         return new Promise((resolve, reject) => {
             if (!this.mediaRecorder) {
@@ -91,23 +130,35 @@ export class SahabSpeechRecognition {
             }
 
             this.mediaRecorder.onstop = () => {
+                console.log('⏹️ MediaRecorder متوقف شد');
+                console.log('📊 تعداد نهایی chunks:', this.audioChunks.length);
+
+                const totalSize = this.audioChunks.reduce((sum, chunk) => sum + chunk.size, 0);
+                console.log('📊 حجم کل داده‌های صوتی:', totalSize, 'bytes');
+
                 const audioBlob = new Blob(this.audioChunks, {
                     type: this.mediaRecorder?.mimeType || 'audio/webm'
+                });
+
+                console.log('📁 فایل صوتی نهایی:', {
+                    size: audioBlob.size,
+                    type: audioBlob.type
                 });
 
                 // Clean up
                 this.cleanup();
 
-                console.log('🎤 ضبط متوقف شد، حجم فایل:', audioBlob.size, 'bytes');
+                console.log('✅ ضبط متوقف شد، حجم فایل:', audioBlob.size, 'bytes');
                 resolve(audioBlob);
             };
 
             this.mediaRecorder.onerror = (event) => {
-                console.error('خطا در ضبط:', event);
+                console.error('❌ خطا در ضبط:', event);
                 this.cleanup();
                 reject(new Error('خطا در ضبط صدا'));
             };
 
+            console.log('⏹️ ارسال دستور توقف به MediaRecorder...');
             this.mediaRecorder.stop();
             this.isRecording = false;
         });
@@ -128,54 +179,111 @@ export class SahabSpeechRecognition {
         });
     }
 
-    // Send audio to Sahab API and get text
+    // Send audio to Sahab API and get text (using backend endpoint)
     async convertToText(audioBlob: Blob): Promise<string> {
         try {
-            console.log('🔄 تبدیل صدا به base64...');
-            const base64Audio = await this.audioToBase64(audioBlob);
-
-            console.log('📤 ارسال به API ساهاب...');
-
-            const myHeaders = new Headers();
-            myHeaders.append("gateway-token", this.gatewayToken);
-            myHeaders.append("Content-Type", "application/json");
-
-            const raw = JSON.stringify({
-                "language": "fa",
-                "data": base64Audio
+            console.log('🔄 شروع تبدیل صدا به متن با backend API...');
+            console.log('📁 اطلاعات فایل صوتی:', {
+                size: audioBlob.size,
+                type: audioBlob.type
             });
 
-            const requestOptions = {
-                method: 'POST',
-                headers: myHeaders,
-                body: raw,
-                redirect: 'follow' as RequestRedirect
-            };
+            if (audioBlob.size === 0) {
+                throw new Error('فایل صوتی خالی است');
+            }
 
-            const response = await fetch("https://partai.gw.isahab.ir/speechRecognition/v1/base64", requestOptions);
+            console.log('🔄 تبدیل صدا به base64...');
+            const base64Audio = await this.audioToBase64(audioBlob);
+            console.log('✅ تبدیل به base64 انجام شد، طول:', base64Audio.length);
+
+            console.log('📤 ارسال درخواست به backend API...');
+
+            // Use our backend API instead of direct Sahab call
+            const response = await fetch('/api/voice-analysis/sahab-speech-recognition', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                credentials: 'include',
+                body: JSON.stringify({
+                    data: base64Audio,
+                    language: 'fa'
+                })
+            });
+
+            console.log('📥 پاسخ backend API دریافت شد:', {
+                status: response.status,
+                statusText: response.statusText,
+                ok: response.ok
+            });
 
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+                const errorData = await response.json().catch(() => ({}));
+                const errorMessage = errorData.message || `HTTP Error: ${response.status}`;
+                console.error('❌ Backend API Error:', errorMessage);
+                throw new Error(errorMessage);
             }
 
             const result = await response.json();
-            console.log('📥 پاسخ از ساهاب:', result);
+            console.log('📥 پاسخ JSON از backend:', result);
 
-            if (result.status === 'success' && result.data && result.data.data) {
-                const transcript = result.data.data;
-                console.log('✅ متن تشخیص داده شده:', transcript);
-                return transcript;
-            } else {
-                throw new Error(result.error || 'خطا در تشخیص گفتار');
+            if (!result.success) {
+                const errorMessage = result.message || 'خطای نامشخص در API';
+                console.error('❌ Backend API Error:', errorMessage);
+                throw new Error(errorMessage);
             }
 
+            if (!result.data || !result.data.text) {
+                console.error('❌ No text in backend response:', result);
+                throw new Error('متن تشخیص داده شده یافت نشد');
+            }
+
+            const transcript = result.data.text.trim();
+            console.log('✅ متن تشخیص داده شده:', transcript);
+            console.log('📊 اعتماد:', result.data.confidence);
+
+            // بررسی اینکه متن معنادار باشد
+            if (transcript.length < 2) {
+                throw new Error('متن تشخیص داده شده خیلی کوتاه است');
+            }
+
+            return transcript;
+
         } catch (error) {
-            console.error('❌ خطا در تبدیل صدا به متن:', error);
+            console.error('❌ خطای کامل در تبدیل صدا به متن:', {
+                error: error,
+                message: error instanceof Error ? error.message : 'خطای نامشخص',
+                stack: error instanceof Error ? error.stack : undefined
+            });
             throw error;
         }
     }
 
-    // Complete record and convert process
+    // Start recording and return a promise that resolves when manually stopped
+    async startRecordingSession(): Promise<{
+        stop: () => Promise<string>;
+        isRecording: () => boolean;
+    }> {
+        console.log('🎤 شروع جلسه ضبط با ساهاب...');
+
+        // Start recording
+        await this.startRecording();
+
+        return {
+            stop: async () => {
+                if (this.isRecording) {
+                    const audioBlob = await this.stopRecording();
+                    const text = await this.convertToText(audioBlob);
+                    return text;
+                } else {
+                    throw new Error('ضبط در جریان نیست');
+                }
+            },
+            isRecording: () => this.isRecording
+        };
+    }
+
+    // Complete record and convert process (for backward compatibility)
     async recordAndConvert(maxDuration: number = 30000): Promise<string> {
         console.log('🎤 شروع فرآیند کامل ضبط و تبدیل با ساهاب...');
 
