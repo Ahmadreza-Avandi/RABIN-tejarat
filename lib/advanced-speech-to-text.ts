@@ -12,8 +12,8 @@ export class AdvancedSpeechToText {
     // Check if browser supports audio recording
     isSupported(): boolean {
         return !!(navigator.mediaDevices &&
-            navigator.mediaDevices.getUserMedia &&
-            window.MediaRecorder);
+            typeof navigator.mediaDevices.getUserMedia === 'function' &&
+            typeof window.MediaRecorder !== 'undefined');
     }
 
     // Start recording audio
@@ -119,15 +119,15 @@ export class AdvancedSpeechToText {
 
         // Try different providers in order of preference
         const providers = [
+            () => this.convertWithSahab(audioBlob), // Sahab is our primary provider
             () => this.convertWithOpenAI(audioBlob),
-            () => this.convertWithWebSpeechAPI(audioBlob),
             () => this.convertWithGoogleSpeech(audioBlob),
             () => this.convertWithLocalAPI(audioBlob)
         ];
 
         for (let i = 0; i < providers.length; i++) {
             try {
-                console.log(`🔄 تلاش ${i + 1}: استفاده از provider ${i + 1}...`);
+                console.log(`🔄 تلاش ${i + 1}: استفاده از provider ${providers[i].name}...`);
                 const result = await providers[i]();
                 if (result && result.trim()) {
                     console.log('✅ تبدیل موفق:', result.substring(0, 50) + '...');
@@ -188,6 +188,52 @@ export class AdvancedSpeechToText {
 
         const data = await response.json();
         return data.transcript || '';
+    }
+
+    // Convert using Sahab Speech Recognition API
+    private async convertWithSahab(audioBlob: Blob): Promise<string> {
+        // Convert Blob to Base64
+        const base64Audio = await this.blobToBase64(audioBlob);
+        
+        const response = await fetch('/api/voice-analysis/sahab-speech-recognition', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                audioData: base64Audio,
+                language: 'fa'
+            }),
+            credentials: 'include'
+        });
+
+        if (!response.ok) {
+            throw new Error(`Sahab API error: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.success && data.text) {
+            return data.text;
+        }
+        throw new Error('Sahab API did not return recognized text');
+    }
+
+    // Convert base64 to blob
+    private async blobToBase64(blob: Blob): Promise<string> {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+                if (typeof reader.result === 'string') {
+                    // Remove data URL prefix (e.g., "data:audio/webm;base64,")
+                    const base64Data = reader.result.split(',')[1];
+                    resolve(base64Data);
+                } else {
+                    reject(new Error('Failed to convert blob to base64'));
+                }
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+        });
     }
 
     // Convert using local API
