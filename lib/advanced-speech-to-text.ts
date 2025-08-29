@@ -1,4 +1,6 @@
 // Advanced Speech-to-Text Service with multiple providers
+import { pcmConverter } from './pcm-audio-converter';
+
 export class AdvancedSpeechToText {
     private mediaRecorder: MediaRecorder | null = null;
     private audioChunks: Blob[] = [];
@@ -190,32 +192,61 @@ export class AdvancedSpeechToText {
         return data.transcript || '';
     }
 
-    // Convert using Sahab Speech Recognition API
+    // Convert using Sahab Speech Recognition API with PCM conversion
     private async convertWithSahab(audioBlob: Blob): Promise<string> {
-        // Convert Blob to Base64
-        const base64Audio = await this.blobToBase64(audioBlob);
+        console.log('🎤 تبدیل صوت با Sahab API (با PCM)...');
 
-        const response = await fetch('/api/voice-analysis/sahab-speech-recognition', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({
-                data: base64Audio,  // تصحیح نام فیلد
-                language: 'fa'
-            }),
-            credentials: 'include'
-        });
+        try {
+            // تبدیل به PCM اگر پشتیبانی شود
+            let base64Audio: string;
 
-        if (!response.ok) {
-            throw new Error(`Sahab API error: ${response.status}`);
+            if (pcmConverter && typeof pcmConverter.convertRecordingToPCM === 'function') {
+                console.log('🔄 تبدیل به PCM...');
+                base64Audio = await pcmConverter.convertRecordingToPCM(audioBlob);
+                console.log('✅ تبدیل PCM موفق، طول base64:', base64Audio.length);
+            } else {
+                console.log('⚠️ PCM converter در دسترس نیست، استفاده از روش معمولی...');
+                base64Audio = await this.blobToBase64(audioBlob);
+            }
+
+            const response = await fetch('/api/voice-analysis/sahab-speech-recognition', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    data: base64Audio,
+                    language: 'fa',
+                    format: 'pcm', // اعلام فرمت PCM
+                    sampleRate: 16000,
+                    channels: 1,
+                    bitDepth: 16
+                }),
+                credentials: 'include'
+            });
+
+            console.log('📞 پاسخ Sahab API:', response.status, response.ok);
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('❌ خطای Sahab API:', response.status, errorText);
+                throw new Error(`Sahab API error: ${response.status} - ${errorText}`);
+            }
+
+            const data = await response.json();
+            console.log('📥 داده‌های دریافتی از Sahab:', data);
+
+            if (data.success && data.data && data.data.text) {
+                console.log('✅ متن تشخیص داده شده:', data.data.text);
+                return data.data.text;
+            }
+
+            throw new Error('Sahab API did not return recognized text');
+
+        } catch (error) {
+            console.error('❌ خطا در convertWithSahab:', error);
+            throw error;
         }
-
-        const data = await response.json();
-        if (data.success && data.data && data.data.text) {
-            return data.data.text;
-        }
-        throw new Error('Sahab API did not return recognized text');
     }
 
     // Convert base64 to blob

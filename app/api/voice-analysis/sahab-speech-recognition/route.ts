@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { data, language = 'fa' } = body;
+        const { data, language = 'fa', format, sampleRate, channels, bitDepth } = body;
 
         if (!data || data.trim() === '') {
             return NextResponse.json(
@@ -41,7 +41,11 @@ export async function POST(req: NextRequest) {
         console.log('🎤 Sahab Speech Recognition API Request:', {
             language,
             dataLength: data.length,
-            dataPreview: data.substring(0, 50) + '...'
+            dataPreview: data.substring(0, 50) + '...',
+            format: format || 'unknown',
+            sampleRate: sampleRate || 'unknown',
+            channels: channels || 'unknown',
+            bitDepth: bitDepth || 'unknown'
         });
 
         try {
@@ -50,11 +54,24 @@ export async function POST(req: NextRequest) {
             headers.append("Content-Type", "application/json");
             headers.append("gateway-token", gatewayToken);
 
-            // Prepare request body
-            const requestBody = {
+            // Prepare request body with PCM info if available
+            const requestBody: any = {
                 "language": language,
                 "data": data
             };
+
+            // اضافه کردن اطلاعات PCM اگر موجود باشد
+            if (format === 'pcm') {
+                requestBody.format = 'pcm';
+                requestBody.sampleRate = sampleRate || 16000;
+                requestBody.channels = channels || 1;
+                requestBody.bitDepth = bitDepth || 16;
+                console.log('📊 PCM format detected:', {
+                    sampleRate: requestBody.sampleRate,
+                    channels: requestBody.channels,
+                    bitDepth: requestBody.bitDepth
+                });
+            }
 
             // Make API request with timeout
             const controller = new AbortController();

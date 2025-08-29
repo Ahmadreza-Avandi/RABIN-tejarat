@@ -17,9 +17,7 @@ services:
       - audio
     # Add privileged mode for audio access on some systems
     privileged: false
-    # Add environment variables for audio
-    environment:
-      - PULSE_RUNTIME_PATH=/var/run/pulse
+    # Add environment variables for audio and application
     environment:
       # All environment variables are loaded from .env file
       # Override specific Docker-related variables if needed
@@ -29,6 +27,11 @@ services:
       - DATABASE_PASSWORD=${DATABASE_PASSWORD}
       - DATABASE_NAME=${DATABASE_NAME:-crm_system}
       - DATABASE_URL=${DATABASE_URL}
+      # Audio-related environment variables
+      - PULSE_RUNTIME_PATH=/var/run/pulse
+      - AUDIO_ENABLED=false
+      - VPS_MODE=true
+      - FALLBACK_TO_MANUAL_INPUT=true
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000"]

@@ -1,0 +1,441 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>تست PCM در مرورگر</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .test-section {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background: #fafafa;
+        }
+        .test-section h3 {
+            margin-top: 0;
+            color: #555;
+        }
+        button {
+            background: #007cba;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 5px;
+            font-size: 14px;
+        }
+        button:hover {
+            background: #005a87;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .log {
+            background: #000;
+            color: #0f0;
+            padding: 15px;
+            border-radius: 5px;
+            font-family: monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            margin: 10px 0;
+            white-space: pre-wrap;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+        .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .status.warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+        .status.info { background: #d1ecf1; color: #0c5460; border: 1px solid #bee5eb; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎤 تست PCM Audio Converter</h1>
+        
+        <div class="test-section">
+            <h3>1. تست پشتیبانی Web Audio API</h3>
+            <button onclick="testWebAudioSupport()">بررسی پشتیبانی</button>
+            <div id="webAudioStatus"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>2. تست تولید فایل PCM</h3>
+            <button onclick="testPCMGeneration()">تولید فایل تست PCM</button>
+            <div id="pcmGenerationStatus"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>3. تست ضبط صوت و تبدیل PCM</h3>
+            <button id="recordBtn" onclick="startRecording()">شروع ضبط</button>
+            <button id="stopBtn" onclick="stopRecording()" disabled>توقف ضبط</button>
+            <div id="recordingStatus"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>4. تست API</h3>
+            <button onclick="testAPI()">تست API با داده نمونه</button>
+            <div id="apiStatus"></div>
+        </div>
+
+        <div class="test-section">
+            <h3>📋 لاگ</h3>
+            <button onclick="clearLog()">پاک کردن لاگ</button>
+            <div id="log" class="log"></div>
+        </div>
+    </div>
+
+    <script>
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let stream = null;
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const timestamp = new Date().toLocaleTimeString('fa-IR');
+            const prefix = type === 'error' ? '❌' : type === 'success' ? '✅' : type === 'warning' ? '⚠️' : 'ℹ️';
+            logDiv.textContent += `[${timestamp}] ${prefix} ${message}\n`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`${prefix} ${message}`);
+        }
+
+        function setStatus(elementId, message, type) {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function clearLog() {
+            document.getElementById('log').textContent = '';
+        }
+
+        // تست 1: پشتیبانی Web Audio API
+        function testWebAudioSupport() {
+            log('شروع تست پشتیبانی Web Audio API...');
+            
+            const hasAudioContext = !!(window.AudioContext || window.webkitAudioContext);
+            const hasMediaDevices = !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia);
+            const hasMediaRecorder = !!window.MediaRecorder;
+            const isSecureContext = window.isSecureContext;
+
+            if (hasAudioContext && hasMediaDevices && hasMediaRecorder && isSecureContext) {
+                setStatus('webAudioStatus', '✅ تمام قابلیت‌های مورد نیاز پشتیبانی می‌شوند', 'success');
+                log('تمام قابلیت‌های مورد نیاز موجود است', 'success');
+            } else {
+                let issues = [];
+                if (!hasAudioContext) issues.push('AudioContext');
+                if (!hasMediaDevices) issues.push('MediaDevices');
+                if (!hasMediaRecorder) issues.push('MediaRecorder');
+                if (!isSecureContext) issues.push('Secure Context (HTTPS)');
+                
+                setStatus('webAudioStatus', `❌ مشکل در: ${issues.join(', ')}`, 'error');
+                log(`مشکل در: ${issues.join(', ')}`, 'error');
+            }
+
+            log(`AudioContext: ${hasAudioContext ? 'موجود' : 'مفقود'}`);
+            log(`MediaDevices: ${hasMediaDevices ? 'موجود' : 'مفقود'}`);
+            log(`MediaRecorder: ${hasMediaRecorder ? 'موجود' : 'مفقود'}`);
+            log(`Secure Context: ${isSecureContext ? 'بله' : 'خیر'}`);
+        }
+
+        // تست 2: تولید فایل PCM
+        async function testPCMGeneration() {
+            log('شروع تست تولید PCM...');
+            
+            try {
+                // تولید یک sine wave کوتاه
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const sampleRate = 16000;
+                const duration = 0.5;
+                const samples = sampleRate * duration;
+                
+                const audioBuffer = audioContext.createBuffer(1, samples, sampleRate);
+                const channelData = audioBuffer.getChannelData(0);
+                
+                // تولید 440Hz sine wave
+                for (let i = 0; i < samples; i++) {
+                    channelData[i] = Math.sin(2 * Math.PI * 440 * i / sampleRate) * 0.1;
+                }
+                
+                log(`AudioBuffer تولید شد: ${samples} samples, ${sampleRate}Hz`);
+                
+                // تبدیل به PCM 16-bit
+                const pcm16 = new ArrayBuffer(samples * 2);
+                const view = new DataView(pcm16);
+                
+                for (let i = 0; i < samples; i++) {
+                    const sample = Math.max(-1, Math.min(1, channelData[i]));
+                    const pcmSample = Math.round(sample * 32767);
+                    view.setInt16(i * 2, pcmSample, true);
+                }
+                
+                // تبدیل به base64
+                const bytes = new Uint8Array(pcm16);
+                let binary = '';
+                for (let i = 0; i < bytes.byteLength; i++) {
+                    binary += String.fromCharCode(bytes[i]);
+                }
+                const base64 = btoa(binary);
+                
+                log(`PCM تولید شد: ${pcm16.byteLength} bytes, base64 length: ${base64.length}`);
+                setStatus('pcmGenerationStatus', `✅ PCM تولید شد: ${pcm16.byteLength} bytes`, 'success');
+                
+                await audioContext.close();
+                
+            } catch (error) {
+                log(`خطا در تولید PCM: ${error.message}`, 'error');
+                setStatus('pcmGenerationStatus', `❌ خطا: ${error.message}`, 'error');
+            }
+        }
+
+        // تست 3: ضبط صوت
+        async function startRecording() {
+            log('درخواست دسترسی به میکروفون...');
+            
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true,
+                        sampleRate: 16000
+                    }
+                });
+                
+                log('دسترسی به میکروفون موفق');
+                
+                audioChunks = [];
+                mediaRecorder = new MediaRecorder(stream, {
+                    mimeType: 'audio/webm;codecs=opus'
+                });
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                        log(`داده دریافت شد: ${event.data.size} bytes`);
+                    }
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    log('ضبط متوقف شد، شروع پردازش...');
+                    await processRecording();
+                };
+                
+                mediaRecorder.start(1000);
+                
+                document.getElementById('recordBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                
+                setStatus('recordingStatus', '🎤 در حال ضبط... (حداکثر 10 ثانیه)', 'info');
+                log('ضبط شروع شد');
+                
+                // توقف خودکار بعد از 10 ثانیه
+                setTimeout(() => {
+                    if (mediaRecorder && mediaRecorder.state === 'recording') {
+                        stopRecording();
+                    }
+                }, 10000);
+                
+            } catch (error) {
+                log(`خطا در شروع ضبط: ${error.message}`, 'error');
+                setStatus('recordingStatus', `❌ خطا: ${error.message}`, 'error');
+            }
+        }
+
+        function stopRecording() {
+            if (mediaRecorder && mediaRecorder.state === 'recording') {
+                mediaRecorder.stop();
+                log('درخواست توقف ضبط ارسال شد');
+            }
+            
+            document.getElementById('recordBtn').disabled = false;
+            document.getElementById('stopBtn').disabled = true;
+        }
+
+        async function processRecording() {
+            try {
+                const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                log(`فایل صوتی ایجاد شد: ${audioBlob.size} bytes`);
+                
+                // تبدیل به PCM
+                const arrayBuffer = await audioBlob.arrayBuffer();
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+                
+                log(`صوت decode شد: ${audioBuffer.length} samples, ${audioBuffer.sampleRate}Hz, ${audioBuffer.numberOfChannels} channels`);
+                
+                // تبدیل به mono
+                const monoData = audioBuffer.numberOfChannels === 1 
+                    ? audioBuffer.getChannelData(0)
+                    : convertToMono(audioBuffer);
+                
+                // resample به 16kHz اگر نیاز باشد
+                const resampledData = audioBuffer.sampleRate === 16000 
+                    ? monoData 
+                    : await resampleTo16kHz(monoData, audioBuffer.sampleRate);
+                
+                // تبدیل به PCM 16-bit
+                const pcm16 = convertToPCM16(resampledData);
+                const base64 = arrayBufferToBase64(pcm16);
+                
+                log(`PCM نهایی: ${pcm16.byteLength} bytes, base64: ${base64.length} chars`);
+                setStatus('recordingStatus', `✅ ضبط و تبدیل موفق: ${pcm16.byteLength} bytes PCM`, 'success');
+                
+                // تست API با داده واقعی
+                await testAPIWithData(base64);
+                
+                await audioContext.close();
+                
+            } catch (error) {
+                log(`خطا در پردازش ضبط: ${error.message}`, 'error');
+                setStatus('recordingStatus', `❌ خطا در پردازش: ${error.message}`, 'error');
+            } finally {
+                // پاک‌سازی
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                    stream = null;
+                }
+            }
+        }
+
+        function convertToMono(audioBuffer) {
+            if (audioBuffer.numberOfChannels === 1) {
+                return audioBuffer.getChannelData(0);
+            }
+            
+            const leftChannel = audioBuffer.getChannelData(0);
+            const rightChannel = audioBuffer.getChannelData(1);
+            const monoData = new Float32Array(leftChannel.length);
+            
+            for (let i = 0; i < leftChannel.length; i++) {
+                monoData[i] = (leftChannel[i] + rightChannel[i]) / 2;
+            }
+            
+            return monoData;
+        }
+
+        function resampleTo16kHz(inputData, inputSampleRate) {
+            if (inputSampleRate === 16000) {
+                return inputData;
+            }
+            
+            const ratio = inputSampleRate / 16000;
+            const outputLength = Math.floor(inputData.length / ratio);
+            const outputData = new Float32Array(outputLength);
+            
+            for (let i = 0; i < outputLength; i++) {
+                const sourceIndex = i * ratio;
+                const index = Math.floor(sourceIndex);
+                const fraction = sourceIndex - index;
+                
+                if (index + 1 < inputData.length) {
+                    outputData[i] = inputData[index] * (1 - fraction) + inputData[index + 1] * fraction;
+                } else {
+                    outputData[i] = inputData[index];
+                }
+            }
+            
+            return outputData;
+        }
+
+        function convertToPCM16(floatData) {
+            const pcm16 = new ArrayBuffer(floatData.length * 2);
+            const view = new DataView(pcm16);
+            
+            for (let i = 0; i < floatData.length; i++) {
+                const sample = Math.max(-1, Math.min(1, floatData[i]));
+                const pcmSample = Math.round(sample * 32767);
+                view.setInt16(i * 2, pcmSample, true);
+            }
+            
+            return pcm16;
+        }
+
+        function arrayBufferToBase64(buffer) {
+            const bytes = new Uint8Array(buffer);
+            let binary = '';
+            for (let i = 0; i < bytes.byteLength; i++) {
+                binary += String.fromCharCode(bytes[i]);
+            }
+            return btoa(binary);
+        }
+
+        // تست 4: API
+        async function testAPI() {
+            // تولید داده تست
+            const testData = btoa('test audio data');
+            await testAPIWithData(testData);
+        }
+
+        async function testAPIWithData(base64Data) {
+            log('شروع تست API...');
+            setStatus('apiStatus', '🔄 در حال تست API...', 'info');
+            
+            try {
+                const response = await fetch('/api/voice-analysis/sahab-speech-recognition', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    credentials: 'include',
+                    body: JSON.stringify({
+                        data: base64Data,
+                        language: 'fa',
+                        format: 'pcm',
+                        sampleRate: 16000,
+                        channels: 1,
+                        bitDepth: 16
+                    })
+                });
+                
+                log(`پاسخ API: HTTP ${response.status}`);
+                
+                const result = await response.json();
+                log(`پاسخ JSON: ${JSON.stringify(result, null, 2)}`);
+                
+                if (response.ok && result.success) {
+                    setStatus('apiStatus', `✅ API موفق: ${result.data?.text || 'بدون متن'}`, 'success');
+                    log('API با موفقیت پاسخ داد', 'success');
+                } else {
+                    setStatus('apiStatus', `⚠️ API پاسخ داد اما نتیجه مطلوب نبود: ${result.message}`, 'warning');
+                    log(`API پاسخ داد اما مشکل دارد: ${result.message}`, 'warning');
+                }
+                
+            } catch (error) {
+                log(`خطا در تست API: ${error.message}`, 'error');
+                setStatus('apiStatus', `❌ خطا در API: ${error.message}`, 'error');
+            }
+        }
+
+        // شروع خودکار تست پشتیبانی
+        window.onload = function() {
+            log('صفحه بارگذاری شد، شروع تست‌های اولیه...');
+            testWebAudioSupport();
+        };
+    </script>
+</body>
+</html>
