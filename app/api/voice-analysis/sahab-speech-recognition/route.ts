@@ -25,7 +25,7 @@ export async function POST(req: NextRequest) {
         }
 
         const body = await req.json();
-        const { data, language = 'fa', format, sampleRate, channels, bitDepth } = body;
+        const { data, language = 'fa' } = body;
 
         if (!data || data.trim() === '') {
             return NextResponse.json(
@@ -41,11 +41,7 @@ export async function POST(req: NextRequest) {
         console.log('🎤 Sahab Speech Recognition API Request:', {
             language,
             dataLength: data.length,
-            dataPreview: data.substring(0, 50) + '...',
-            format: format || 'unknown',
-            sampleRate: sampleRate || 'unknown',
-            channels: channels || 'unknown',
-            bitDepth: bitDepth || 'unknown'
+            dataPreview: data.substring(0, 50) + '...'
         });
 
         try {
@@ -54,24 +50,11 @@ export async function POST(req: NextRequest) {
             headers.append("Content-Type", "application/json");
             headers.append("gateway-token", gatewayToken);
 
-            // Prepare request body with PCM info if available
-            const requestBody: any = {
+            // Prepare request body
+            const requestBody = {
                 "language": language,
                 "data": data
             };
-
-            // اضافه کردن اطلاعات PCM اگر موجود باشد
-            if (format === 'pcm') {
-                requestBody.format = 'pcm';
-                requestBody.sampleRate = sampleRate || 16000;
-                requestBody.channels = channels || 1;
-                requestBody.bitDepth = bitDepth || 16;
-                console.log('📊 PCM format detected:', {
-                    sampleRate: requestBody.sampleRate,
-                    channels: requestBody.channels,
-                    bitDepth: requestBody.bitDepth
-                });
-            }
 
             // Make API request with timeout
             const controller = new AbortController();
@@ -220,50 +203,29 @@ export async function POST(req: NextRequest) {
                 }
             });
 
-        } catch (fetchError: any) {
+        } catch (fetchError) {
             console.error('❌ Sahab Speech Recognition Fetch Error:', fetchError);
-            console.log('🔄 Falling back to VPS-compatible STT...');
 
-            // Check if it's a network timeout or connection error
-            const isNetworkError = fetchError.name === 'AbortError' ||
-                fetchError.message?.includes('timeout') ||
-                fetchError.message?.includes('network') ||
-                fetchError.message?.includes('fetch');
-
-            if (isNetworkError) {
-                console.log('🌐 Network issue detected, using VPS fallback mode');
-
-                // VPS Fallback: Return a mock transcription with instructions
-                return NextResponse.json({
-                    success: true,
-                    message: 'تشخیص گفتار (حالت VPS) - شبکه در دسترس نیست',
-                    data: {
-                        text: process.env.AUDIO_FALLBACK_TEXT || 'گزارش احمد',
-                        confidence: 0.8,
-                        language: language,
-                        fallback: true,
-                        vps_mode: true,
-                        network_issue: true,
-                        instructions: 'در محیط VPS، لطفاً دستور خود را به صورت متنی وارد کنید'
+            if (fetchError.name === 'AbortError') {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        message: 'درخواست به دلیل طولانی شدن زمان لغو شد',
+                        error_code: 'TIMEOUT'
                     },
-                    original_error: fetchError.message
-                });
-            } else {
-                // Other errors - still provide fallback
-                return NextResponse.json({
-                    success: true,
-                    message: 'تشخیص گفتار (حالت fallback)',
-                    data: {
-                        text: process.env.AUDIO_FALLBACK_TEXT || 'گزارش احمد',
-                        confidence: 0.7,
-                        language: language,
-                        fallback: true,
-                        vps_mode: true,
-                        error_type: 'api_error'
-                    },
-                    original_error: fetchError.message
-                });
+                    { status: 408 }
+                );
             }
+
+            return NextResponse.json(
+                {
+                    success: false,
+                    message: 'خطا در ارتباط با سرویس تشخیص گفتار',
+                    error_code: 'NETWORK_ERROR',
+                    error_details: fetchError.message
+                },
+                { status: 500 }
+            );
         }
 
     } catch (error) {
