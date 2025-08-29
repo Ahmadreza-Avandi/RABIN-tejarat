@@ -1,6 +1,11 @@
 # مرحله 1: Base image
 FROM node:18-alpine AS base
-RUN apk add --no-cache libc6-compat pulseaudio pulseaudio-utils alsa-utils alsa-lib
+# Install system dependencies (remove audio packages for VPS)
+RUN apk add --no-cache libc6-compat curl wget bash
+# Add audio packages only if not in VPS mode
+RUN if [ "$VPS_MODE" != "true" ]; then \
+        apk add --no-cache pulseaudio pulseaudio-utils alsa-utils alsa-lib; \
+    fi
 WORKDIR /app
 
 # مرحله 2: Dependencies
@@ -37,9 +42,17 @@ RUN adduser --system --uid 1001 nextjs
 # کپی فایل‌های public
 COPY --from=builder /app/public ./public
 
+# کپی debug scripts برای production
+COPY --from=builder /app/debug-*.sh ./
+COPY --from=builder /app/test-*.sh ./
+COPY --from=builder /app/test-pcm-browser.html ./public/
+
 # کپی standalone build
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Make debug scripts executable
+RUN chmod +x *.sh 2>/dev/null || true
 
 USER nextjs
 

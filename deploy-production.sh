@@ -89,6 +89,53 @@ print_status "تنظیم سیستم صوتی برای VPS..."
 # Create a VPS-optimized docker-compose file
 cp docker-compose.yml docker-compose.yml.backup
 
+# Create audio debug and fallback scripts for VPS
+print_status "ایجاد اسکریپت‌های دیباگ صوتی برای VPS..."
+
+# Make debug scripts executable
+chmod +x debug-*.sh 2>/dev/null || true
+chmod +x test-*.sh 2>/dev/null || true
+chmod +x setup-*.sh 2>/dev/null || true
+
+# Create VPS-specific audio test script
+cat > test-audio-vps.sh << 'EOFVPS'
+#!/bin/bash
+echo "🔧 تست سیستم صوتی VPS..."
+
+# Test network connectivity to Sahab
+echo "📡 تست اتصال به Sahab API..."
+if curl -s --connect-timeout 5 --max-time 10 https://partai.gw.isahab.ir/speechRecognition/v1/base64 > /dev/null; then
+    echo "✅ اتصال به Sahab برقرار است"
+else
+    echo "❌ اتصال به Sahab برقرار نیست - استفاده از fallback"
+fi
+
+# Test local API
+echo "🔍 تست API محلی..."
+if curl -s http://localhost:3000/api/health > /dev/null; then
+    echo "✅ سرور محلی در حال اجرا است"
+    
+    # Test speech recognition endpoint
+    echo "🎤 تست endpoint تشخیص گفتار..."
+    response=$(curl -s -X POST \
+        -H "Content-Type: application/json" \
+        http://localhost:3000/api/voice-analysis/sahab-speech-recognition \
+        -d '{"data":"dGVzdA==","language":"fa","format":"pcm"}' 2>/dev/null)
+    
+    if echo "$response" | grep -q "success"; then
+        echo "✅ API تشخیص گفتار پاسخ می‌دهد"
+    else
+        echo "⚠️ API تشخیص گفتار نیاز به احراز هویت دارد"
+    fi
+else
+    echo "❌ سرور محلی در حال اجرا نیست"
+fi
+
+echo "🎯 برای تست کامل: docker-compose -f docker-compose.production.yml logs nextjs"
+EOFVPS
+
+chmod +x test-audio-vps.sh
+
 # Create VPS-specific docker-compose configuration
 cat > docker-compose.production.yml << 'EOF'
 version: '3.8'
@@ -122,6 +169,12 @@ services:
       # Add VPS-specific audio settings
       - AUDIO_ENABLED=false
       - VPS_MODE=true
+      - SAHAB_API_KEY=${SAHAB_API_KEY}
+      - FALLBACK_MODE=true
+      - AUDIO_FALLBACK_TEXT=گزارش احمد
+      # Network settings for VPS
+      - NETWORK_TIMEOUT=30000
+      - API_RETRY_COUNT=3
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://127.0.0.1:3000"]
@@ -346,24 +399,68 @@ docker-compose -f docker-compose.production.yml ps
 print_status "نمایش لاگ‌های اخیر..."
 docker-compose -f docker-compose.production.yml logs --tail=20
 
-# Step 14: Final checks and information
+# Step 14: Test audio system on VPS
+print_status "تست سیستم صوتی VPS..."
+./test-audio-vps.sh
+
+# Step 15: Create audio debug script for production
+cat > debug-audio-production.sh << 'EOFDEBUG'
+#!/bin/bash
+echo "� دیبارگ سیستم صوتی Production..."
+
+echo "📊 وضعیت کانتینرها:"
+docker-compose -f docker-compose.production.yml ps
+
+echo ""
+echo "🔍 بررسی متغیرهای محیطی:"
+docker-compose -f docker-compose.production.yml exec nextjs env | grep -E "(SAHAB|AUDIO|VPS|FALLBACK)"
+
+echo ""
+echo "📡 تست اتصال شبکه از داخل کانتینر:"
+docker-compose -f docker-compose.production.yml exec nextjs curl -s --connect-timeout 5 --max-time 10 https://partai.gw.isahab.ir/speechRecognition/v1/base64 || echo "❌ اتصال از داخل کانتینر ناموفق"
+
+echo ""
+echo "🎤 تست API تشخیص گفتار:"
+docker-compose -f docker-compose.production.yml exec nextjs curl -s -X POST \
+    -H "Content-Type: application/json" \
+    http://localhost:3000/api/voice-analysis/sahab-speech-recognition \
+    -d '{"data":"dGVzdA==","language":"fa","format":"pcm"}' | head -c 200
+
+echo ""
+echo "📋 لاگ‌های اخیر Next.js:"
+docker-compose -f docker-compose.production.yml logs --tail=50 nextjs | grep -E "(audio|speech|sahab|pcm|error)" || echo "هیچ لاگ صوتی یافت نشد"
+
+echo ""
+echo "🔧 دستورات مفید:"
+echo "  • مشاهده لاگ کامل: docker-compose -f docker-compose.production.yml logs -f nextjs"
+echo "  • ورود به کانتینر: docker-compose -f docker-compose.production.yml exec nextjs bash"
+echo "  • ری‌استارت سرویس: docker-compose -f docker-compose.production.yml restart nextjs"
+EOFDEBUG
+
+chmod +x debug-audio-production.sh
+
+# Step 16: Final checks and information
 print_success "🎉 استقرار Production با موفقیت انجام شد!"
 echo
 echo "📋 آدرس‌های سرویس:"
 echo "   🌐 سایت اصلی: https://ahmadreza-avandi.ir"
 echo "   🗄️  phpMyAdmin: https://ahmadreza-avandi.ir/secure-db-admin-panel-x7k9m2/"
+echo "   🧪 تست PCM: https://ahmadreza-avandi.ir/test-pcm-browser.html"
 echo
 echo "📊 دستورات مفید:"
 echo "   📋 مشاهده لاگ‌ها: docker-compose -f docker-compose.production.yml logs -f"
 echo "   📈 وضعیت سرویس‌ها: docker-compose -f docker-compose.production.yml ps"
 echo "   🔄 ری‌استارت: docker-compose -f docker-compose.production.yml restart"
 echo "   🛑 توقف: docker-compose -f docker-compose.production.yml down"
+echo "   🎤 دیباگ صوتی: ./debug-audio-production.sh"
+echo "   🔧 تست VPS: ./test-audio-vps.sh"
 echo
 echo "⚠️  نکات مهم:"
 echo "   1. سیستم صوتی برای VPS بهینه‌سازی شده (fallback به manual input)"
-echo "   2. دامنه باید به IP سرور point کرده باشد"
+echo "   2. Sahab API ممکن است از VPS بلاک باشد - fallback فعال است"
 echo "   3. فایل .env.server را با اطلاعات واقعی تنظیم کنید"
 echo "   4. برای تست سیستم صوتی از HTTPS استفاده کنید"
+echo "   5. PCM conversion در مرورگر کار می‌کند"
 echo
 print_warning "🔐 فراموش نکنید: رمزهای عبور را تغییر دهید و سرور را امن کنید!"
 
