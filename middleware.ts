@@ -66,6 +66,17 @@ export async function middleware(request: NextRequest) {
     !pathname.startsWith('/api/feedback/form/') &&
     !pathname.startsWith('/api/feedback/submit') &&
     !pathname.startsWith('/api/health')) {
+    // Development bypass for specific voice-analysis endpoints when allowed
+    const allowDev = process.env.NODE_ENV !== 'production' || process.env.ALLOW_DEV_FALLBACK === '1';
+    if (allowDev && (
+      pathname.startsWith('/api/voice-analysis/sahab-speech-recognition') ||
+      pathname.startsWith('/api/voice-analysis/sahab-tts-v2') ||
+      pathname.startsWith('/api/voice-analysis/sahab-tts') ||
+      pathname.startsWith('/api/voice-analysis/debug-sahab')
+    )) {
+      return NextResponse.next();
+    }
+
     const token = request.headers.get('authorization')?.replace('Bearer ', '') ||
       request.cookies.get('auth-token')?.value;
 
