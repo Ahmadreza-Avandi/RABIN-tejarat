@@ -1,0 +1,28 @@
+FROM node:18-slim
+
+# نصب پیش‌نیازها
+RUN apt-get update && apt-get install -y \
+    pulseaudio \
+    alsa-utils \
+    ffmpeg \
+    sox \
+    libasound2-plugins \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# کپی فایل‌های پروژه
+COPY package*.json ./
+COPY . .
+
+# نصب وابستگی‌ها و ساخت پروژه
+RUN npm ci
+RUN npm run build
+
+# تنظیم متغیرهای محیطی صوتی
+ENV PULSE_SERVER=unix:/tmp/pulse/native
+ENV PULSE_COOKIE=/tmp/pulse/cookie
+
+# راه‌اندازی اپلیکیشن
+EXPOSE 3000
+CMD ["npm", "start"]

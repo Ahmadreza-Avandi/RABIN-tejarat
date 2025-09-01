@@ -1,4 +1,4 @@
-# مرحله 1: Base image
+# Stage 1: Base image
 FROM node:18-alpine AS base
 
 # Install system dependencies including audio support
@@ -23,6 +23,9 @@ RUN mkdir -p /etc/pulse && \
     echo "enable-shm = false" >> /etc/pulse/client.conf
 
 WORKDIR /app
+
+# Create necessary directories
+RUN mkdir -p /app/debug /app/scripts /app/audio-temp /app/logs
 
 # مرحله 2: Dependencies
 FROM base AS deps
