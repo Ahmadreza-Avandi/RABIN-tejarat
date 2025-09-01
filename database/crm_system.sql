@@ -28,7 +28,7 @@ SET time_zone = "+00:00";
 --
 
 CREATE TABLE `activities` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `customer_id` varchar(36) NOT NULL,
   `deal_id` varchar(36) DEFAULT NULL,
   `type` varchar(50) NOT NULL DEFAULT 'call',
@@ -52,7 +52,7 @@ CREATE TABLE `activities` (
 --
 
 CREATE TABLE `activity_log` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `user_id` varchar(36) DEFAULT NULL,
   `action` varchar(100) NOT NULL,
   `resource_type` varchar(50) NOT NULL,
@@ -71,7 +71,7 @@ CREATE TABLE `activity_log` (
 --
 
 CREATE TABLE `alerts` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `type` enum('info','warning','error','success') NOT NULL,
   `title` varchar(255) NOT NULL,
   `message` text NOT NULL,
@@ -112,7 +112,7 @@ CREATE TABLE `backup_history` (
 --
 
 CREATE TABLE `calendar_events` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `title` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
   `start_date` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
@@ -166,7 +166,7 @@ INSERT INTO `chat_conversations` (`id`, `title`, `type`, `description`, `avatar_
 --
 
 CREATE TABLE `chat_groups` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `name` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
   `created_by` varchar(36) NOT NULL,
@@ -182,7 +182,7 @@ CREATE TABLE `chat_groups` (
 --
 
 CREATE TABLE `chat_group_members` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `group_id` varchar(36) NOT NULL,
   `user_id` varchar(36) NOT NULL,
   `role` enum('admin','member') DEFAULT 'member',
@@ -196,7 +196,7 @@ CREATE TABLE `chat_group_members` (
 --
 
 CREATE TABLE `chat_messages` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `conversation_id` varchar(36) NOT NULL,
   `sender_id` varchar(36) NOT NULL,
   `receiver_id` varchar(36) NOT NULL,
@@ -377,7 +377,7 @@ CREATE TABLE `contact_activities` (
 --
 
 CREATE TABLE `customers` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `name` varchar(255) NOT NULL,
   `email` varchar(255) DEFAULT NULL,
   `phone` varchar(50) DEFAULT NULL,
@@ -428,7 +428,7 @@ INSERT INTO `customers` (`id`, `name`, `email`, `phone`, `website`, `address`, `
 --
 
 CREATE TABLE `customer_health` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `customer_id` varchar(36) NOT NULL,
   `overall_score` int(11) DEFAULT 50,
   `usage_score` int(11) DEFAULT 50,
@@ -447,7 +447,7 @@ CREATE TABLE `customer_health` (
 --
 
 CREATE TABLE `customer_journey` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `customer_id` varchar(36) NOT NULL,
   `stage_id` varchar(36) NOT NULL,
   `entered_at` timestamp NULL DEFAULT current_timestamp(),
@@ -463,7 +463,7 @@ CREATE TABLE `customer_journey` (
 --
 
 CREATE TABLE `customer_journey_stages` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `name` varchar(100) NOT NULL,
   `description` text DEFAULT NULL,
   `stage_order` int(11) NOT NULL,
@@ -479,7 +479,7 @@ CREATE TABLE `customer_journey_stages` (
 --
 
 CREATE TABLE `customer_tags` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `customer_id` varchar(36) NOT NULL,
   `tag` varchar(100) NOT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp()
@@ -507,7 +507,7 @@ CREATE TABLE `daily_interaction_stats` (
 --
 
 CREATE TABLE `daily_reports` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `user_id` varchar(36) NOT NULL,
   `report_date` date NOT NULL,
   `persian_date` varchar(20) NOT NULL,
@@ -528,7 +528,7 @@ CREATE TABLE `daily_reports` (
 --
 
 CREATE TABLE `deals` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `customer_id` varchar(36) NOT NULL,
   `title` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
@@ -558,7 +558,7 @@ CREATE TABLE `deals` (
 --
 
 CREATE TABLE `deal_products` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `deal_id` varchar(36) NOT NULL,
   `product_id` varchar(36) NOT NULL,
   `quantity` int(11) NOT NULL DEFAULT 1,
@@ -574,7 +574,7 @@ CREATE TABLE `deal_products` (
 --
 
 CREATE TABLE `deal_stage_history` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `deal_id` varchar(36) NOT NULL,
   `stage_id` varchar(36) NOT NULL,
   `entered_at` timestamp NULL DEFAULT current_timestamp(),
@@ -590,7 +590,7 @@ CREATE TABLE `deal_stage_history` (
 --
 
 CREATE TABLE `event_attendees` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `event_id` varchar(36) NOT NULL,
   `user_id` varchar(36) DEFAULT NULL,
   `contact_id` varchar(36) DEFAULT NULL,
@@ -606,7 +606,7 @@ CREATE TABLE `event_attendees` (
 --
 
 CREATE TABLE `feedback` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `customer_id` varchar(36) NOT NULL,
   `type` enum('csat','nps','ces','complaint','suggestion','praise') NOT NULL,
   `title` varchar(255) DEFAULT NULL,
@@ -654,7 +654,7 @@ INSERT INTO `feedback` (`id`, `customer_id`, `type`, `title`, `comment`, `score`
 --
 
 CREATE TABLE `feedback_forms` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `title` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
   `type` enum('sales','product') NOT NULL,
@@ -679,7 +679,7 @@ INSERT INTO `feedback_forms` (`id`, `title`, `description`, `type`, `template`, 
 --
 
 CREATE TABLE `feedback_form_questions` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `form_id` varchar(36) NOT NULL,
   `question` text NOT NULL,
   `type` enum('text','rating','choice','textarea') NOT NULL,
@@ -714,7 +714,7 @@ INSERT INTO `feedback_form_questions` (`id`, `form_id`, `question`, `type`, `opt
 --
 
 CREATE TABLE `feedback_form_responses` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `submission_id` varchar(36) NOT NULL,
   `question_id` varchar(36) NOT NULL,
   `response` text DEFAULT NULL,
@@ -740,7 +740,7 @@ INSERT INTO `feedback_form_responses` (`id`, `submission_id`, `question_id`, `re
 --
 
 CREATE TABLE `feedback_form_submissions` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `form_id` varchar(36) NOT NULL,
   `customer_id` varchar(36) NOT NULL,
   `token` varchar(255) NOT NULL,
@@ -777,7 +777,7 @@ INSERT INTO `feedback_form_submissions` (`id`, `form_id`, `customer_id`, `token`
 --
 
 CREATE TABLE `interactions` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `customer_id` varchar(36) NOT NULL,
   `type` enum('email','phone','chat','meeting','website','social') NOT NULL,
   `subject` varchar(255) DEFAULT NULL,
@@ -798,7 +798,7 @@ CREATE TABLE `interactions` (
 --
 
 CREATE TABLE `interaction_attachments` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `interaction_id` varchar(36) NOT NULL,
   `filename` varchar(255) NOT NULL,
   `file_path` varchar(500) NOT NULL,
@@ -815,7 +815,7 @@ CREATE TABLE `interaction_attachments` (
 --
 
 CREATE TABLE `interaction_follow_ups` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `interaction_id` varchar(36) NOT NULL,
   `title` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
@@ -863,7 +863,7 @@ CREATE TABLE `interaction_summary` (
 --
 
 CREATE TABLE `interaction_tags` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `interaction_id` varchar(36) NOT NULL,
   `tag` varchar(100) NOT NULL,
   `created_at` timestamp NULL DEFAULT current_timestamp()
@@ -876,7 +876,7 @@ CREATE TABLE `interaction_tags` (
 --
 
 CREATE TABLE `modules` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `name` varchar(100) NOT NULL,
   `display_name` varchar(100) NOT NULL,
   `description` text DEFAULT NULL,
@@ -929,7 +929,7 @@ INSERT INTO `modules` (`id`, `name`, `display_name`, `description`, `route`, `ic
 --
 
 CREATE TABLE `notes` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `customer_id` varchar(36) DEFAULT NULL,
   `deal_id` varchar(36) DEFAULT NULL,
   `title` varchar(255) NOT NULL,
@@ -948,7 +948,7 @@ CREATE TABLE `notes` (
 --
 
 CREATE TABLE `note_tags` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `note_id` varchar(36) NOT NULL,
   `tag` varchar(100) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -980,7 +980,7 @@ CREATE TABLE `notifications` (
 --
 
 CREATE TABLE `permissions` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `name` varchar(100) NOT NULL,
   `display_name` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
@@ -1010,7 +1010,7 @@ INSERT INTO `permissions` (`id`, `name`, `display_name`, `description`, `created
 --
 
 CREATE TABLE `pipeline_stages` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `name` varchar(100) NOT NULL,
   `code` varchar(50) NOT NULL,
   `description` text DEFAULT NULL,
@@ -1041,7 +1041,7 @@ INSERT INTO `pipeline_stages` (`id`, `name`, `code`, `description`, `stage_order
 --
 
 CREATE TABLE `products` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `name` varchar(255) NOT NULL,
   `category` varchar(100) DEFAULT NULL,
   `description` text DEFAULT NULL,
@@ -1061,7 +1061,7 @@ CREATE TABLE `products` (
 --
 
 CREATE TABLE `product_discounts` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `product_id` varchar(36) NOT NULL,
   `name` varchar(255) NOT NULL,
   `type` enum('percentage','fixed') NOT NULL,
@@ -1079,7 +1079,7 @@ CREATE TABLE `product_discounts` (
 --
 
 CREATE TABLE `projects` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `customer_id` varchar(36) NOT NULL,
   `name` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
@@ -1107,7 +1107,7 @@ CREATE TABLE `projects` (
 --
 
 CREATE TABLE `project_members` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `project_id` varchar(36) NOT NULL,
   `user_id` varchar(36) NOT NULL,
   `role` enum('manager','member','viewer') DEFAULT 'member',
@@ -1122,7 +1122,7 @@ CREATE TABLE `project_members` (
 --
 
 CREATE TABLE `project_milestones` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `project_id` varchar(36) NOT NULL,
   `name` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
@@ -1139,7 +1139,7 @@ CREATE TABLE `project_milestones` (
 --
 
 CREATE TABLE `project_tags` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `project_id` varchar(36) NOT NULL,
   `tag` varchar(100) NOT NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -1151,7 +1151,7 @@ CREATE TABLE `project_tags` (
 --
 
 CREATE TABLE `project_team` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `project_id` varchar(36) NOT NULL,
   `user_id` varchar(36) NOT NULL,
   `role` varchar(100) DEFAULT 'member',
@@ -1165,7 +1165,7 @@ CREATE TABLE `project_team` (
 --
 
 CREATE TABLE `sales` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `deal_id` varchar(36) NOT NULL,
   `customer_id` varchar(36) NOT NULL,
   `customer_name` varchar(255) NOT NULL,
@@ -1261,7 +1261,7 @@ CREATE TABLE `sales_statistics` (
 --
 
 CREATE TABLE `sale_items` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `sale_id` varchar(36) NOT NULL,
   `product_id` varchar(36) NOT NULL,
   `product_name` varchar(255) NOT NULL,
@@ -1279,7 +1279,7 @@ CREATE TABLE `sale_items` (
 --
 
 CREATE TABLE `surveys` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `title` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
   `type` enum('csat','nps','custom','product','employee') DEFAULT 'csat',
@@ -1299,7 +1299,7 @@ CREATE TABLE `surveys` (
 --
 
 CREATE TABLE `survey_questions` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `survey_id` varchar(36) NOT NULL,
   `question_text` text NOT NULL,
   `question_type` enum('rating','text','multiple_choice','yes_no') NOT NULL,
@@ -1315,7 +1315,7 @@ CREATE TABLE `survey_questions` (
 --
 
 CREATE TABLE `survey_responses` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `survey_id` varchar(36) NOT NULL,
   `question_id` varchar(36) NOT NULL,
   `customer_id` varchar(36) DEFAULT NULL,
@@ -1346,7 +1346,7 @@ CREATE TABLE `system_logs` (
 --
 
 CREATE TABLE `system_settings` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `setting_key` varchar(100) NOT NULL,
   `setting_value` text DEFAULT NULL,
   `setting_type` enum('string','number','boolean','json') DEFAULT 'string',
@@ -1377,7 +1377,7 @@ INSERT INTO `system_settings` (`id`, `setting_key`, `setting_value`, `setting_ty
 --
 
 CREATE TABLE `tasks` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `title` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
   `customer_id` varchar(36) DEFAULT NULL,
@@ -1403,7 +1403,7 @@ CREATE TABLE `tasks` (
 --
 
 CREATE TABLE `task_assignees` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `task_id` varchar(36) NOT NULL,
   `user_id` varchar(36) NOT NULL,
   `assigned_at` timestamp NULL DEFAULT current_timestamp(),
@@ -1417,7 +1417,7 @@ CREATE TABLE `task_assignees` (
 --
 
 CREATE TABLE `task_comments` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `task_id` varchar(36) NOT NULL,
   `user_id` varchar(36) NOT NULL,
   `comment` text NOT NULL,
@@ -1431,7 +1431,7 @@ CREATE TABLE `task_comments` (
 --
 
 CREATE TABLE `task_files` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `task_id` varchar(36) NOT NULL,
   `filename` varchar(255) NOT NULL,
   `original_name` varchar(255) NOT NULL,
@@ -1449,7 +1449,7 @@ CREATE TABLE `task_files` (
 --
 
 CREATE TABLE `task_steps` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `task_id` varchar(36) NOT NULL,
   `title` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
@@ -1470,7 +1470,7 @@ CREATE TABLE `task_steps` (
 --
 
 CREATE TABLE `tickets` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `customer_id` varchar(36) NOT NULL,
   `subject` varchar(255) NOT NULL,
   `description` text NOT NULL,
@@ -1493,7 +1493,7 @@ CREATE TABLE `tickets` (
 --
 
 CREATE TABLE `ticket_updates` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `ticket_id` varchar(36) NOT NULL,
   `user_id` varchar(36) NOT NULL,
   `type` enum('comment','status_change','assignment_change','priority_change') DEFAULT 'comment',
@@ -1510,7 +1510,7 @@ CREATE TABLE `ticket_updates` (
 --
 
 CREATE TABLE `users` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `name` varchar(255) NOT NULL,
   `email` varchar(255) NOT NULL,
   `password_hash` varchar(255) NOT NULL,
@@ -1562,7 +1562,7 @@ CREATE TABLE `user_interaction_performance` (
 --
 
 CREATE TABLE `user_module_permissions` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `user_id` varchar(36) NOT NULL,
   `module_id` varchar(36) NOT NULL,
   `granted` tinyint(1) DEFAULT 1,
@@ -1614,7 +1614,7 @@ INSERT INTO `user_module_permissions` (`id`, `user_id`, `module_id`, `granted`, 
 --
 
 CREATE TABLE `user_permissions` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `user_id` varchar(36) NOT NULL,
   `resource` varchar(100) NOT NULL,
   `action` varchar(50) NOT NULL,
@@ -1645,7 +1645,7 @@ INSERT INTO `user_permissions` (`id`, `user_id`, `resource`, `action`, `granted`
 --
 
 CREATE TABLE `user_sessions` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `user_id` varchar(36) NOT NULL,
   `session_token` varchar(255) NOT NULL,
   `expires_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
@@ -1659,7 +1659,7 @@ CREATE TABLE `user_sessions` (
 --
 
 CREATE TABLE `user_targets` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `user_id` varchar(36) NOT NULL,
   `period` enum('monthly','quarterly','yearly') NOT NULL,
   `start_date` date NOT NULL,
@@ -1685,7 +1685,7 @@ CREATE TABLE `user_targets` (
 --
 
 CREATE TABLE `voc_insights` (
-  `id` varchar(36) NOT NULL DEFAULT uuid(),
+  `id` varchar(36) NOT NULL,
   `title` varchar(255) NOT NULL,
   `description` text DEFAULT NULL,
   `impact` enum('low','medium','high') NOT NULL,

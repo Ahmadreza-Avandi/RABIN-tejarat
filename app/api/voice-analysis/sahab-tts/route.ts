@@ -36,7 +36,8 @@ export async function POST(req: NextRequest) {
 
         // Sahab API configuration
         const gatewayToken = 'eyJhbGciOiJIUzI1NiJ9.eyJzeXN0ZW0iOiJzYWhhYiIsImNyZWF0ZVRpbWUiOiIxNDA0MDYwNDIxMTQ1NDgyNCIsInVuaXF1ZUZpZWxkcyI6eyJ1c2VybmFtZSI6ImU2ZTE2ZWVkLTkzNzEtNGJlOC1hZTBiLTAwNGNkYjBmMTdiOSJ9LCJncm91cE5hbWUiOiJkZjk4NTY2MTZiZGVhNDE2NGQ4ODMzZmRkYTUyOGUwNCIsImRhdGEiOnsic2VydmljZUlEIjoiZGY1M2E3ODAtMjE1OC00NTI0LTkyNDctYzZmMGJhZDNlNzcwIiwicmFuZG9tVGV4dCI6InJtWFJSIn19.6wao3Mps4YOOFh-Si9oS5JW-XZ9RHR58A1CWgM0DUCg';
-        const apiUrl = 'https://partai.gw.isahab.ir/TextToSpeech/v1/speech-synthesys';
+        const upstreamHost = process.env.SPEECH_UPSTREAM_HOST || 'https://api.ahmadreza-avandi.ir';
+        const apiUrl = `${upstreamHost.replace(/\/$/, '')}/text-to-speech`;
 
         console.log('🎵 Sahab TTS API Request:', {
             text: text.substring(0, 50) + '...',
@@ -169,58 +170,53 @@ export async function POST(req: NextRequest) {
                     }
                 });
 
-            } catch (downloadError) {
-                console.error('❌ Error downloading audio file:', downloadError);
+            } catch (fetchError) {
+                console.error('\u274c Sahab API Fetch Error:', fetchError);
 
-                // Fallback: Return the file URL directly for client-side handling
-                console.log('🔄 Falling back to direct URL method...');
-                return NextResponse.json({
-                    success: true,
-                    message: 'تبدیل متن به صدا با موفقیت انجام شد (روش مستقیم)',
-                    data: {
-                        audioUrl: audioUrl,
-                        audioBase64: null, // Will be handled client-side
-                        checksum: parsedResult.data.data.checksum,
-                        filePath: parsedResult.data.data.filePath,
-                        speaker: speaker,
-                        textLength: text.length,
-                        requestId: parsedResult.meta?.requestId,
-                        shamsiDate: parsedResult.meta?.shamsiDate,
-                        fallback: true
-                    }
-                });
+                if ((fetchError as any).name === 'AbortError') {
+                    return NextResponse.json(
+                        {
+                            success: false,
+                            message: '\u062f\u0631\u062e\u0648\u0627\u0633\u062a \u0628\u0647 \u062f\u0644\u06cc\u0644 \u0637\u0648\u0644\u0627\u0646\u06cc \u0634\u062f\u0646 \u0632\u0645\u0627\u0646 \u0644\u063a\u0648 \u0634\u062f',
+                            error_code: 'TIMEOUT'
+                        },
+                        { status: 408 }
+                    );
+                }
+
+                return NextResponse.json(
+                    {
+                        success: false,
+                        message: '\u062e\u0637\u0627 \u062f\u0631 \u0627\u0631\u062a\u0628\u0627\u0637 \u0628\u0627 \u0633\u0631\u0648\u06cc\u0633 \u0635\u0648\u062a\u06cc',
+                        error_code: 'NETWORK_ERROR',
+                        error_details: (fetchError as any).message
+                    },
+                    { status: 500 }
+                );
+            }
+        } catch (fetchError) {
+            console.error('❌ Sahab API Fetch Error:', fetchError);
+
+            if (fetchError.name === 'AbortError') {
+                return NextResponse.json(
+                    {
+                        success: false,
+                        message: 'درخواست به دلیل طولانی شدن زمان لغو شد',
+                        error_code: 'TIMEOUT'
+                    },
+                    { status: 408 }
+                );
             }
 
-
-
-        } catch (fetchError: any) {
-            console.error('❌ Sahab API Fetch Error:', fetchError);
-            console.log('🔄 Falling back to VPS-compatible TTS...');
-
-            // Check if it's a network timeout or connection error
-            const isNetworkError = fetchError.name === 'AbortError' ||
-                fetchError.message?.includes('timeout') ||
-                fetchError.message?.includes('network') ||
-                fetchError.message?.includes('fetch');
-
-            // VPS Fallback: Return a silent audio file with message
-            const silentAudio = "UklGRnoAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAAABmYWN0BAAAAAAAAABkYXRhAAAAAA==";
-
-            return NextResponse.json({
-                success: true,
-                message: `تبدیل متن به صدا (حالت VPS): "${text.substring(0, 50)}${text.length > 50 ? '...' : ''}"`,
-                data: {
-                    audioBase64: `data:audio/wav;base64,${silentAudio}`,
-                    audioUrl: `data:audio/wav;base64,${silentAudio}`,
-                    speaker: speaker,
-                    textLength: text.length,
-                    fallback: true,
-                    vps_mode: true,
-                    network_issue: isNetworkError,
-                    text_preview: text.substring(0, 100)
+            return NextResponse.json(
+                {
+                    success: false,
+                    message: 'خطا در ارتباط با سرویس صوتی',
+                    error_code: 'NETWORK_ERROR',
+                    error_details: fetchError.message
                 },
-                original_error: fetchError.message
-            });
+                { status: 500 }
+            );
         }
 
     } catch (error) {

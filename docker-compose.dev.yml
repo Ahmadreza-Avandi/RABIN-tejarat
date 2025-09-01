@@ -5,7 +5,7 @@ services:
   nextjs-dev:
     build: 
       context: .
-      target: base
+      target: deps
     container_name: crm-nextjs-dev
     ports:
       - "3000:3000"

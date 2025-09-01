@@ -34,9 +34,10 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Sahab API V2 configuration
-        const gatewayToken = 'eyJhbGciOiJIUzI1NiJ9.eyJzeXN0ZW0iOiJzYWhhYiIsImNyZWF0ZVRpbWUiOiIxNDA0MDYwNDIxMTQ1NDgyNCIsInVuaXF1ZUZpZWxkcyI6eyJ1c2VybmFtZSI6ImU2ZTE2ZWVkLTkzNzEtNGJlOC1hZTBiLTAwNGNkYjBmMTdiOSJ9LCJncm91cE5hbWUiOiJkZjk4NTY2MTZiZGVhNDE2NGQ4ODMzZmRkYTUyOGUwNCIsImRhdGEiOnsic2VydmljZUlEIjoiZGY1M2E3ODAtMjE1OC00NTI0LTkyNDctYzZmMGJhZDNlNzcwIiwicmFuZG9tVGV4dCI6InJtWFJSIn19.6wao3Mps4YOOFh-Si9oS5JW-XZ9RHR58A1CWgM0DUCg';
-        const apiUrl = 'https://partai.gw.isahab.ir/TextToSpeech/v2/speech-synthesys';
+        // Sahab API V2 configuration - use env provided TTS token and upstream host
+        const gatewayToken = process.env.TTS_TOKEN || process.env.SAHAB_TTS_TOKEN;
+        const upstreamHost = process.env.SPEECH_UPSTREAM_HOST || 'https://api.ahmadreza-avandi.ir';
+        const apiUrl = `${upstreamHost.replace(/\/$/, '')}/text-to-speech`;
 
         console.log('🎵 Sahab TTS V2 API Request:', {
             text: text.substring(0, 50) + '...',
@@ -47,63 +48,153 @@ export async function POST(req: NextRequest) {
         });
 
         try {
-            const response = await fetch(apiUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${gatewayToken}`,
-                },
-                body: JSON.stringify({
-                    text,
-                    speaker,
-                    speed,
-                    pitch,
-                    format: 'mp3'
-                }),
-            });
-
-            if (!response.ok) {
-                throw new Error(`HTTP Error: ${response.status}`);
+            // Optional client API key enforcement
+            const clientApiKey = req.headers.get('x-api-key');
+            if (process.env.REQUIRE_CLIENT_API_KEY === '1') {
+                const expected = process.env.CLIENT_API_KEY;
+                if (!expected || clientApiKey !== expected) {
+                    return NextResponse.json({ success: false, message: 'Unauthorized (missing x-api-key)' }, { status: 401 });
+                }
             }
 
-            const data = await response.json();
-            console.log('📥 Sahab API V2 Raw Response:', JSON.stringify(data));
+            const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+            if (gatewayToken) headers['gateway-token'] = gatewayToken;
 
-            if (data.data?.status === 'success' && data.data?.data?.filePath) {
-                // Download the audio file
-                const audioUrl = `https://${data.data.data.filePath}`;
-                console.log('🔄 Downloading audio file from:', audioUrl);
+            const response = await fetch(apiUrl, {
+                method: 'POST',
+                headers,
+                body: JSON.stringify({ text, speaker, speed, pitch, filePath: 'true', base64: '0' }),
+            });
 
-                const audioResponse = await fetch(audioUrl);
-                if (!audioResponse.ok) {
-                    throw new Error(`Failed to download audio file: ${audioResponse.status}`);
-                }
+            // Read upstream response body as text so we can log it even when it's not valid JSON
+            const upstreamStatus = response.status;
+            const upstreamText = await response.text();
+            let upstreamBody: any = upstreamText;
+            try {
+                upstreamBody = JSON.parse(upstreamText);
+            } catch (e) {
+                // keep as raw text
+            }
 
-                const audioBuffer = await audioResponse.arrayBuffer();
-                const base64Audio = Buffer.from(audioBuffer).toString('base64');
+            console.log('📥 Sahab API V2 Raw Response:', { status: upstreamStatus, body: upstreamBody });
 
-                console.log('✅ Audio file downloaded and converted to base64:', {
-                    fileSize: audioBuffer.byteLength,
-                    base64Length: base64Audio.length
-                });
+            if (!response.ok) {
+                // Return upstream body to client for debugging (502) and log full details
+                console.error('🔻 Upstream returned non-OK status for TTS:', { status: upstreamStatus, body: upstreamBody });
+                return NextResponse.json({
+                    success: false,
+                    message: 'Upstream TTS error',
+                    upstream: { status: upstreamStatus, body: upstreamBody }
+                }, { status: 502 });
+            }
 
+            const data = upstreamBody;
+
+            // Support two upstream modes:
+            // 1) returns data.data.data.filePath (a path, sometimes without https)
+            // 2) returns data.data.data.base64 (direct base64 audio)
+            const upData = data?.data?.data;
+            const base64FromUpstream = upData?.base64;
+            const filePathFromUpstream = upData?.filePath;
+
+            if (base64FromUpstream) {
+                console.log('✅ Upstream returned base64 audio directly');
                 return NextResponse.json({
                     success: true,
-                    audioBase64: base64Audio,
+                    audioBase64: base64FromUpstream,
+                    format: 'mp3',
+                    metadata: { speaker, speed, pitch, textLength: text.length }
+                });
+            }
+
+            if (filePathFromUpstream) {
+                // Normalize filePath — upstream may return without protocol
+                let filePath = String(filePathFromUpstream || '').trim();
+                if (!filePath.startsWith('http://') && !filePath.startsWith('https://')) {
+                    filePath = `https://${filePath}`;
+                }
+
+                // Prepare a response that includes the direct audio URL so the client can fetch it
+                const audioUrl = filePath;
+                const baseResponse = {
+                    success: true,
+                    data: {
+                        audioUrl,
+                    },
                     format: 'mp3',
                     metadata: {
                         speaker,
                         speed,
                         pitch,
-                        textLength: text.length
+                        textLength: text.length,
+                        upstreamFilePath: filePathFromUpstream
                     }
-                });
-            } else {
-                throw new Error('Invalid API response format');
+                } as any;
+
+                console.log('🔄 Upstream provided filePath (normalized):', audioUrl);
+
+                // Try to download server-side, but if network is unreachable, return audioUrl so client can attempt
+                try {
+                    console.log('🔄 Attempting server-side download of audio file from:', audioUrl);
+                    const audioResponse = await fetch(audioUrl);
+                    const audioStatus = audioResponse.status;
+                    if (!audioResponse.ok) {
+                        const audioText = await audioResponse.text().catch(() => '<binary or unreadable body>');
+                        console.error('🔻 Failed to download audio file from upstream:', { status: audioStatus, body: audioText });
+                        // Return audioUrl to client to try fetching directly
+                        baseResponse.note = 'server_failed_to_download_audio, client_may_fetch_audioUrl_directly';
+                        return NextResponse.json(baseResponse, { status: 200 });
+                    }
+
+                    const audioBuffer = await audioResponse.arrayBuffer();
+                    const base64Audio = Buffer.from(audioBuffer).toString('base64');
+
+                    console.log('✅ Audio file downloaded and converted to base64:', {
+                        fileSize: audioBuffer.byteLength,
+                        base64Length: base64Audio.length,
+                        originalFilePath: filePathFromUpstream
+                    });
+
+                    // Return binary as base64 when download succeeded
+                    return NextResponse.json({
+                        success: true,
+                        data: {
+                            audioBase64: base64Audio,
+                            audioUrl
+                        },
+                        format: 'mp3',
+                        metadata: baseResponse.metadata
+                    });
+
+                } catch (downloadError) {
+                    console.error('❌ Server-side audio download error (will return audioUrl to client):', downloadError);
+                    baseResponse.note = 'server_error_when_downloading_audio';
+                    return NextResponse.json(baseResponse, { status: 200 });
+                }
             }
+
+            console.error('🔻 Invalid API response format from upstream TTS:', { body: data });
+            return NextResponse.json({ success: false, message: 'Invalid API response format', upstream: data }, { status: 502 });
 
         } catch (error) {
             console.error('❌ Error in Sahab TTS V2:', error);
+
+            const errAny = error as any;
+            if (errAny && (errAny.code === 'ENETUNREACH' || String(errAny).includes('ENETUNREACH') || String(errAny).includes('fetch failed'))) {
+                console.warn('⚠️ Upstream TTS unreachable, returning fallback response to client');
+
+                // Return a structured fallback that client-side SahabTTS can detect and fallback to TalkBot or local TTS
+                return NextResponse.json({
+                    success: false,
+                    fallback: true,
+                    message: 'Upstream TTS unreachable, use client-side fallback',
+                    data: {
+                        provider: 'upstream-unreachable',
+                        recommended_fallback: 'talkbot' // client can switch to talkbot-tts
+                    }
+                }, { status: 502 });
+            }
+
             throw error;
         }
 

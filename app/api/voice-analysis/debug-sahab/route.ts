@@ -6,7 +6,8 @@ export async function GET(req: NextRequest) {
         console.log('🔍 Testing Sahab API connectivity...');
 
         const gatewayToken = 'eyJhbGciOiJIUzI1NiJ9.eyJzeXN0ZW0iOiJzYWhhYiIsImNyZWF0ZVRpbWUiOiIxNDA0MDYwNDIxMTQ1NDgyNCIsInVuaXF1ZUZpZWxkcyI6eyJ1c2VybmFtZSI6ImU2ZTE2ZWVkLTkzNzEtNGJlOC1hZTBiLTAwNGNkYjBmMTdiOSJ9LCJncm91cE5hbWUiOiJkZjk4NTY2MTZiZGVhNDE2NGQ4ODMzZmRkYTUyOGUwNCIsImRhdGEiOnsic2VydmljZUlEIjoiZGY1M2E3ODAtMjE1OC00NTI0LTkyNDctYzZmMGJhZDNlNzcwIiwicmFuZG9tVGV4dCI6InJtWFJSIn19.6wao3Mps4YOOFh-Si9oS5JW-XZ9RHR58A1CWgM0DUCg';
-        const apiUrl = 'https://partai.gw.isahab.ir/TextToSpeech/v1/speech-synthesys';
+        const upstreamHost = process.env.SPEECH_UPSTREAM_HOST || 'https://api.ahmadreza-avandi.ir';
+        const apiUrl = `${upstreamHost.replace(/\/$/, '')}/text-to-speech`;
 
         // Test 1: Basic connectivity
         console.log('🔗 Testing basic connectivity to Sahab API...');
@@ -137,7 +138,7 @@ export async function GET(req: NextRequest) {
                 success: false,
                 test: 'audio_file_download',
                 audio_url: audioUrl,
-                error: downloadError.message,
+                error: (downloadError as any)?.message || String(downloadError),
                 message: 'Failed to download audio file'
             });
         }
@@ -147,7 +148,7 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({
             success: false,
             test: 'general_error',
-            error: error.message,
+            error: (error as any)?.message || String(error),
             message: 'General error in debug test'
         });
     }

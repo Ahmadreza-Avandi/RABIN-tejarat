@@ -1,12 +1,6 @@
 # مرحله 1: Base image
 FROM node:18-alpine AS base
-# Install system dependencies (remove audio packages for VPS)
-RUN apk add --no-cache libc6-compat curl wget bash
-# Add audio packages only if not in VPS mode
-RUN if [ "$VPS_MODE" != "true" ]; then \
-    apk add --no-cache pulseaudio pulseaudio-utils alsa-utils alsa-lib; \
-    fi
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat curl wget bash pulseaudio pulseaudio-utils alsa-utils alsa-lib
 WORKDIR /app
 
 # مرحله 2: Dependencies

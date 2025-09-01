@@ -2,7 +2,7 @@
 export class SahabTTS {
     private static instance: SahabTTS;
     private gatewayToken: string = 'eyJhbGciOiJIUzI1NiJ9.eyJzeXN0ZW0iOiJzYWhhYiIsImNyZWF0ZVRpbWUiOiIxNDA0MDYwNDIxMTQ1NDgyNCIsInVuaXF1ZUZpZWxkcyI6eyJ1c2VybmFtZSI6ImU2ZTE2ZWVkLTkzNzEtNGJlOC1hZTBiLTAwNGNkYjBmMTdiOSJ9LCJncm91cE5hbWUiOiJkZjk4NTY2MTZiZGVhNDE2NGQ4ODMzZmRkYTUyOGUwNCIsImRhdGEiOnsic2VydmljZUlEIjoiZGY1M2E3ODAtMjE1OC00NTI0LTkyNDctYzZmMGJhZDNlNzcwIiwicmFuZG9tVGV4dCI6InJtWFJSIn19.6wao3Mps4YOOFh-Si9oS5JW-XZ9RHR58A1CWgM0DUCg';
-    private apiUrl: string = 'https://partai.gw.isahab.ir/TextToSpeech/v1/speech-synthesys';
+    private apiUrl: string = (process.env.SPEECH_UPSTREAM_HOST || 'https://api.ahmadreza-avandi.ir').replace(/\/$/, '') + '/text-to-speech';
     private isSpeaking: boolean = false;
     private currentAudio: HTMLAudioElement | null = null;
     private isLoading: boolean = false;

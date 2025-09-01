@@ -18,7 +18,6 @@ export default function RootLayout({
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <script src="/fix-audio-vps.js" defer></script>
       </head>
       <body className="min-h-screen font-vazir">
         <Providers>

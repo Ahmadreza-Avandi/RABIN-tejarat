@@ -76,6 +76,12 @@ export class SahabTTSV2 {
             });
 
             if (!result.success) {
+                // If backend indicates upstream unreachable, let fallback logic handle it
+                if (result.fallback) {
+                    console.warn('⚠️ Backend requested fallback:', result.message);
+                    throw new Error('UPSTREAM_FALLBACK');
+                }
+
                 const errorMessage = result.message || 'خطای نامشخص در API';
                 console.error('❌ API Error:', errorMessage);
                 options?.onError?.(errorMessage);

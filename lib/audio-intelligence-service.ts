@@ -25,32 +25,6 @@ export class AudioIntelligenceService {
 
     constructor() {
         console.log('🎯 Audio Intelligence Service initialized');
-        this.checkEnvironmentCompatibility();
-    }
-
-    private checkEnvironmentCompatibility() {
-        // Check if we're in a secure context (HTTPS)
-        if (typeof window !== 'undefined' && !window.isSecureContext) {
-            console.warn('⚠️ Web Speech API requires a secure context (HTTPS)');
-        }
-
-        // Check if audio is supported
-        if (typeof window !== 'undefined') {
-            // Test audio playback
-            const audio = new Audio();
-            audio.oncanplaythrough = () => {
-                console.log('✅ Audio playback supported');
-            };
-            audio.onerror = () => {
-                console.warn('⚠️ Audio playback not supported');
-            };
-            audio.src = 'data:audio/wav;base64,UklGRngAAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAAABmYWN0BAAAAAAAAABkYXRhAAAAAA==';
-        }
-
-        // Check if Web Speech API is supported
-        if (typeof window !== 'undefined' && !('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
-            console.error('❌ Web Speech API is not supported in this environment');
-        }
     }
 
     // Helper method to find authentication token
@@ -177,32 +151,6 @@ export class AudioIntelligenceService {
 
             // Fallback to Web Speech API
             console.log('🎤 Falling back to Web Speech API...');
-
-            // First check if we have the required APIs
-            if (typeof window === 'undefined') {
-                throw new Error('صفحه هنوز به طور کامل بارگذاری نشده است');
-            }
-
-            if (!window.isSecureContext) {
-                throw new Error('این قابلیت نیاز به یک محیط امن (HTTPS) دارد');
-            }
-
-            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-                throw new Error('دسترسی به میکروفون در این مرورگر یا محیط پشتیبانی نمی‌شود');
-            }
-
-            // Ensure any ongoing TTS is stopped to avoid feedback
-            try {
-                talkBotTTS.stop();
-            } catch (e) {
-                console.warn('خطا در توقف TalkBot TTS:', e);
-            }
-            try {
-                sahabTTSV2.stop();
-            } catch (e) {
-                console.warn('خطا در توقف Sahab TTS:', e);
-            }
-
             const microphoneOk = await enhancedPersianSpeechRecognition.testMicrophone();
             if (!microphoneOk) {
                 console.warn('میکروفون در دسترس نیست، استفاده از ورودی دستی');
@@ -215,39 +163,6 @@ export class AudioIntelligenceService {
 
             // Final fallback to manual input
             console.log('استفاده از ورودی دستی به عنوان fallback نهایی');
-            return await enhancedPersianSpeechRecognition.getManualInput();
-        }
-    }
-
-    // Listen to user and provide interim updates via callback
-    async listenWithInterim(onInterim: (text: string) => void): Promise<string> {
-        try {
-            // Stop any TTS to avoid feedback
-            try { talkBotTTS.stop(); } catch (e) { }
-            try { sahabTTSV2.stop(); } catch (e) { }
-
-            const microphoneOk = await enhancedPersianSpeechRecognition.testMicrophone();
-            if (!microphoneOk) {
-                console.warn('میکروفون در دسترس نیست، استفاده از ورودی دستی');
-                return await enhancedPersianSpeechRecognition.getManualInput();
-            }
-
-            // Subscribe interim events
-            enhancedPersianSpeechRecognition.onInterim((text: string) => {
-                try {
-                    onInterim(text);
-                } catch (e) {
-                    console.error('خطا در onInterim handler:', e);
-                }
-            });
-
-            // Also notify start/end if needed
-            enhancedPersianSpeechRecognition.onStart(() => { this.isProcessing = true; });
-            enhancedPersianSpeechRecognition.onEnd(() => { /* noop */ });
-
-            return await enhancedPersianSpeechRecognition.startListening();
-        } catch (error) {
-            console.error('خطا در تشخیص گفتار با interim:', error);
             return await enhancedPersianSpeechRecognition.getManualInput();
         }
     }
