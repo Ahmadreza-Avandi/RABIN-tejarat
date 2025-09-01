@@ -1,6 +1,27 @@
 # مرحله 1: Base image
 FROM node:18-alpine AS base
-RUN apk add --no-cache libc6-compat curl wget bash pulseaudio pulseaudio-utils alsa-utils alsa-lib
+
+# Install system dependencies including audio support
+RUN apk add --no-cache \
+    libc6-compat \
+    curl \
+    wget \
+    bash \
+    pulseaudio \
+    pulseaudio-utils \
+    alsa-utils \
+    alsa-lib \
+    alsa-plugins \
+    ffmpeg \
+    sox
+
+# Configure audio
+RUN mkdir -p /etc/pulse && \
+    echo "default-server = unix:/tmp/pulse/native" > /etc/pulse/client.conf && \
+    echo "autospawn = no" >> /etc/pulse/client.conf && \
+    echo "daemon-binary = /bin/true" >> /etc/pulse/client.conf && \
+    echo "enable-shm = false" >> /etc/pulse/client.conf
+
 WORKDIR /app
 
 # مرحله 2: Dependencies
