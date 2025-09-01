@@ -37,13 +37,19 @@ RUN adduser --system --uid 1001 nextjs
 # کپی فایل‌های public
 COPY --from=builder /app/public ./public
 
+# Create necessary directories
+RUN mkdir -p /app/debug /app/audio-temp /app/logs /app/scripts
+
 # کپی debug scripts برای production
-COPY --from=builder /app/debug-*.sh ./ || true
-COPY --from=builder /app/test-*.sh ./ || true
+COPY --from=builder /app/debug-*.sh /app/debug/ 2>/dev/null || true
+COPY --from=builder /app/test-*.sh /app/scripts/ 2>/dev/null || true
 
 # کپی standalone build
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Set correct permissions
+RUN chown -R nextjs:nodejs /app/debug /app/audio-temp /app/logs /app/scripts
 
 # Make debug scripts executable
 RUN chmod +x *.sh 2>/dev/null || true
