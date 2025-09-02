@@ -1,12 +1,12 @@
 #!/bin/bash
 
-# 🚀 Complete CRM Server Deployment Script
+# 🚀 Fixed Complete CRM Deployment Script
 set -e
 
 DOMAIN="ahmadreza-avandi.ir"
 EMAIL="admin@ahmadreza-avandi.ir"
 
-echo "🚀 شروع دیپلوی کامل CRM روی سرور..."
+echo "🚀 شروع دیپلوی کامل CRM..."
 echo "🌐 دامنه: $DOMAIN"
 
 # بررسی حافظه سیستم
@@ -28,11 +28,7 @@ if [ ! -f ".env" ]; then
     echo "⚠️  فایل .env یافت نشد. کپی از template..."
     cp .env.example .env
     echo "📝 لطفاً فایل .env را ویرایش کنید!"
-    echo "⚠️  حتماً تنظیمات زیر را انجام دهید:"
-    echo "   - NEXTAUTH_URL=https://$DOMAIN"
-    echo "   - DATABASE_PASSWORD=پسورد قوی"
-    echo "   - NEXTAUTH_SECRET=کلید مخفی قوی"
-    echo "   - JWT_SECRET=کلید JWT قوی"
+    echo "⚠️  حتماً NEXTAUTH_URL=https://$DOMAIN را تنظیم کنید"
     read -p "بعد از ویرایش فایل .env اینتر بزنید..."
 fi
 
@@ -47,8 +43,8 @@ docker system prune -f
 
 # ایجاد دایرکتری‌های مورد نیاز
 echo "📁 ایجاد دایرکتری‌های مورد نیاز..."
-sudo mkdir -p /etc/letsencrypt
-sudo mkdir -p /var/www/certbot
+mkdir -p /etc/letsencrypt
+mkdir -p /var/www/certbot
 mkdir -p nginx/ssl
 
 # کپی nginx config مناسب
@@ -109,7 +105,7 @@ sleep 10
 # دریافت گواهی SSL
 echo "📜 دریافت گواهی SSL..."
 if [ ! -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
-    sudo docker run --rm \
+    docker run --rm \
         -v /etc/letsencrypt:/etc/letsencrypt \
         -v /var/www/certbot:/var/www/certbot \
         certbot/certbot \
@@ -179,7 +175,11 @@ fi
 # تنظیم docker-compose برای استفاده از nginx config فعال
 echo "🔧 تنظیم docker-compose..."
 # کپی فایل compose و تنظیم nginx config
-cp $COMPOSE_FILE docker-compose.deploy.yml
+if [ "$COMPOSE_FILE" = "docker-compose.memory-optimized.yml" ]; then
+    cp docker-compose.memory-optimized.yml docker-compose.deploy.yml
+else
+    cp docker-compose.yml docker-compose.deploy.yml
+fi
 
 # تنظیم nginx volume در فایل deploy
 sed -i 's|./nginx/default.conf:/etc/nginx/conf.d/default.conf|./nginx/active.conf:/etc/nginx/conf.d/default.conf|g' docker-compose.deploy.yml
@@ -208,13 +208,6 @@ else
     echo "⚠️  NextJS ممکن است هنوز آماده نباشد"
 fi
 
-# تست دامنه
-if curl -f http://$DOMAIN >/dev/null 2>&1; then
-    echo "✅ دامنه $DOMAIN در دسترس است"
-else
-    echo "⚠️  دامنه ممکن است هنوز آماده نباشد"
-fi
-
 # نمایش لاگ‌های اخیر
 echo "📋 لاگ‌های اخیر:"
 docker-compose -f $COMPOSE_FILE logs --tail=20
@@ -222,15 +215,8 @@ docker-compose -f $COMPOSE_FILE logs --tail=20
 # تنظیم تجدید خودکار SSL
 if [ -f "/etc/letsencrypt/live/$DOMAIN/fullchain.pem" ]; then
     echo "⏰ تنظیم تجدید خودکار SSL..."
-    (sudo crontab -l 2>/dev/null; echo "0 12 * * * /usr/bin/certbot renew --quiet && cd $(pwd) && docker-compose -f $COMPOSE_FILE restart nginx") | sudo crontab -
+    (crontab -l 2>/dev/null; echo "0 12 * * * /usr/bin/certbot renew --quiet && docker-compose -f $(pwd)/$COMPOSE_FILE restart nginx") | crontab -
 fi
-
-# تنظیم فایروال (اختیاری)
-echo "🔥 تنظیم فایروال..."
-sudo ufw allow 22/tcp
-sudo ufw allow 80/tcp
-sudo ufw allow 443/tcp
-sudo ufw --force enable
 
 echo ""
 echo "🎉 دیپلوی کامل شد!"
@@ -249,15 +235,4 @@ echo "   • مشاهده لاگ‌ها: docker-compose -f $COMPOSE_FILE logs -f
 echo "   • راه‌اندازی مجدد: docker-compose -f $COMPOSE_FILE restart"
 echo "   • توقف: docker-compose -f $COMPOSE_FILE down"
 echo "   • وضعیت: docker-compose -f $COMPOSE_FILE ps"
-echo "   • بک‌آپ دیتابیس: docker-compose -f $COMPOSE_FILE exec mysql mysqldump -u root -p crm_system > backup.sql"
 echo ""
-echo "🔐 اطلاعات دسترسی phpMyAdmin:"
-echo "   • آدرس: /secure-db-admin-panel-x7k9m2/"
-echo "   • نام کاربری: از فایل .env"
-echo "   • رمز عبور: از فایل .env"
-echo ""
-echo "⚠️  نکات امنیتی:"
-echo "   • فایل .env را محرمانه نگه دارید"
-echo "   • رمزهای قوی استفاده کنید"
-echo "   • بک‌آپ منظم از دیتابیس بگیرید"
-echo "   • لاگ‌ها را مرتب بررسی کنید"

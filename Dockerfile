@@ -64,9 +64,7 @@ COPY --from=builder /app/public ./public
 # Create necessary directories
 RUN mkdir -p /app/debug /app/audio-temp /app/logs /app/scripts
 
-# کپی debug scripts برای production
-COPY --from=builder /app/debug-*.sh /app/debug/ 2>/dev/null || true
-COPY --from=builder /app/test-*.sh /app/scripts/ 2>/dev/null || true
+# Debug scripts will be available if they exist in the build context
 
 # کپی standalone build
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./

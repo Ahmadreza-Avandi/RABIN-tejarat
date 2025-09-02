@@ -1,23 +1,62 @@
-# راه حل ساده - استفاده از pre-built image
-FROM node:18-alpine
+# Stage 1: Base image
+FROM node:18-alpine AS base
+
+# Install basic system dependencies
+RUN apk add --no-cache libc6-compat curl wget bash
 
 WORKDIR /app
 
-# تنظیمات production
+# Create necessary directories
+RUN mkdir -p /app/debug /app/scripts /app/audio-temp /app/logs
+
+# مرحله 2: Dependencies
+FROM base AS deps
+COPY package*.json ./
+RUN npm ci --only=production --prefer-offline --no-audit --progress=false
+
+# مرحله 3: Builder
+FROM base AS builder
+COPY package*.json ./
+
+# نصب dependencies با تنظیمات بهینه
+RUN npm ci --prefer-offline --no-audit --progress=false --maxsockets 1
+
+# کپی کل پروژه
+COPY . .
+
+# Build با memory بسیار محدود و تنظیمات بهینه
+ENV NODE_OPTIONS="--max-old-space-size=1024 --max-semi-space-size=64"
+ENV NEXT_TELEMETRY_DISABLED=1
+ENV CI=true
+
+# Build با memory محدود
+RUN npm run build:memory-safe || npm run build
+
+# مرحله 4: Runner
+FROM base AS runner
 ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=512"
 
-# کپی فایل‌های package
-COPY package*.json ./
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
 
-# نصب فقط production dependencies
-RUN npm ci --only=production && npm cache clean --force
+# کپی فایل‌های public
+COPY --from=builder /app/public ./public
 
-# کپی فایل‌های build شده (باید از قبل build شده باشه)
-COPY .next ./.next
-COPY public ./public
-COPY next.config.js ./
+# Create necessary directories
+RUN mkdir -p /app/debug /app/audio-temp /app/logs /app/scripts
+
+# کپی standalone build
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Set correct permissions
+RUN chown -R nextjs:nodejs /app/debug /app/audio-temp /app/logs /app/scripts
+
+USER nextjs
 
 EXPOSE 3000
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
 
-CMD ["npm", "start"]
+CMD ["node", "server.js"]
